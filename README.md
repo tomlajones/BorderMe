@@ -82,6 +82,10 @@ BORDERME_NO_NOTIFY=1 BORDERME_BORDER=medium BORDERME_OUTPUT=small ./borderme.sh 
 
 `BORDERME_BORDER` takes `small`, `medium`, or `large`. `BORDERME_OUTPUT` takes those plus `instagram-portrait` and `instagram-landscape`. `BORDERME_ENGINE` points at a different engine binary if you're testing one.
 
+## Licence
+
+MIT, which is about as permissive as it gets. Use it, change it, build it into something of your own, sell that something if you like. Just keep the copyright line in `LICENSE` with it, and know that it comes with no warranty from me.
+
 ## Thanks
 
 If you use this and something breaks, or a preset you want is missing, open an issue and tell me about it.
