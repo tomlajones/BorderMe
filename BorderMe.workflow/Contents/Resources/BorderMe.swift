@@ -5,26 +5,31 @@ import UniformTypeIdentifiers
 
 private enum BorderMeError: LocalizedError {
     case usage
-    case cannotRead(String)
+    case cannotRead
+    case notAnImage
     case animatedImage
     case invalidDimensions
     case cannotRender
-    case cannotWrite(String)
+    case cannotWrite
 
+    // These surface in a Finder dialog that already names the file, so they
+    // stay short and leave the path out.
     var errorDescription: String? {
         switch self {
         case .usage:
             return "Usage: borderme-engine <input> <output> <border: small|medium|large> <preset>"
-        case .cannotRead(let path):
-            return "Cannot read image: \(path)"
+        case .cannotRead:
+            return "the file could not be opened"
+        case .notAnImage:
+            return "not a readable image file"
         case .animatedImage:
-            return "Animated or multi-page images are not supported"
+            return "animated and multi-page images are not supported"
         case .invalidDimensions:
-            return "The image has invalid pixel dimensions"
+            return "the image has invalid pixel dimensions"
         case .cannotRender:
-            return "The image could not be rendered"
-        case .cannotWrite(let path):
-            return "Cannot write output: \(path)"
+            return "the image could not be rendered"
+        case .cannotWrite:
+            return "the bordered copy could not be written"
         }
     }
 }
@@ -111,6 +116,14 @@ private func orientedDimensions(from source: CGImageSource) throws -> (width: In
     return (rawWidth, rawHeight)
 }
 
+/// The border is split evenly across opposite edges, so a canvas that differs
+/// from the image by an odd number of pixels would leave one edge a pixel
+/// wider than the other. Growing the canvas to match the image's parity keeps
+/// every border symmetric.
+private func matchingParity(canvas: Int, image: Int) -> Int {
+    return (canvas - image) % 2 == 0 ? canvas : canvas + 1
+}
+
 private func standardPlan(
     width: Int,
     height: Int,
@@ -129,16 +142,16 @@ private func standardPlan(
         }
     }
 
-    let canvasWidth = max(1, Int((Double(unscaledCanvasWidth) * scale).rounded()))
-    let canvasHeight = max(1, Int((Double(unscaledCanvasHeight) * scale).rounded()))
     let imageWidth = max(1, Int((Double(width) * scale).rounded()))
     let imageHeight = max(1, Int((Double(height) * scale).rounded()))
+    let canvasWidth = max(imageWidth, Int((Double(unscaledCanvasWidth) * scale).rounded()))
+    let canvasHeight = max(imageHeight, Int((Double(unscaledCanvasHeight) * scale).rounded()))
 
     return RenderPlan(
-        canvasWidth: canvasWidth,
-        canvasHeight: canvasHeight,
-        imageWidth: min(imageWidth, canvasWidth),
-        imageHeight: min(imageHeight, canvasHeight)
+        canvasWidth: matchingParity(canvas: canvasWidth, image: imageWidth),
+        canvasHeight: matchingParity(canvas: canvasHeight, image: imageHeight),
+        imageWidth: imageWidth,
+        imageHeight: imageHeight
     )
 }
 
@@ -155,14 +168,19 @@ private func instagramPlan(
     let widthScale = Double(availableWidth) / Double(width)
     let heightScale = Double(availableHeight) / Double(height)
     let scale = min(1.0, widthScale, heightScale)
-    let imageWidth = max(1, Int((Double(width) * scale).rounded(.down)))
-    let imageHeight = max(1, Int((Double(height) * scale).rounded(.down)))
+    var imageWidth = min(max(1, Int((Double(width) * scale).rounded(.down))), availableWidth)
+    var imageHeight = min(max(1, Int((Double(height) * scale).rounded(.down))), availableHeight)
+
+    // The canvas is a fixed size here, so symmetry comes from trimming the
+    // image by a pixel rather than growing the canvas.
+    if (canvas.width - imageWidth) % 2 != 0 { imageWidth = max(1, imageWidth - 1) }
+    if (canvas.height - imageHeight) % 2 != 0 { imageHeight = max(1, imageHeight - 1) }
 
     return RenderPlan(
         canvasWidth: canvas.width,
         canvasHeight: canvas.height,
-        imageWidth: min(imageWidth, availableWidth),
-        imageHeight: min(imageHeight, availableHeight)
+        imageWidth: imageWidth,
+        imageHeight: imageHeight
     )
 }
 
@@ -180,32 +198,54 @@ private func normalizedImage(from source: CGImageSource, maximumPixelSize: Int) 
     return image
 }
 
-private func render(source: CGImageSource, plan: RenderPlan) throws -> CGImage {
-    guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) else {
+/// Instagram assumes sRGB, so anything bound for it is converted. Everything
+/// else keeps the original's RGB profile — converting a wide-gamut photo to
+/// sRGB would quietly clip its most saturated colours.
+private func destinationColorSpace(for image: CGImage, preset: OutputPreset) throws -> CGColorSpace {
+    guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB) else {
         throw BorderMeError.cannotRender
     }
-
-    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue)
-    guard let context = CGContext(
-        data: nil,
-        width: plan.canvasWidth,
-        height: plan.canvasHeight,
-        bitsPerComponent: 8,
-        bytesPerRow: 0,
-        space: colorSpace,
-        bitmapInfo: bitmapInfo.rawValue
-    ) else {
-        throw BorderMeError.cannotRender
+    guard preset.instagramCanvas == nil else {
+        return sRGB
     }
+    guard
+        let space = image.colorSpace,
+        space.model == .rgb,
+        space.numberOfComponents == 3,
+        space.supportsOutput
+    else {
+        return sRGB
+    }
+    return space
+}
 
-    context.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
-    context.fill(CGRect(x: 0, y: 0, width: plan.canvasWidth, height: plan.canvasHeight))
-    context.interpolationQuality = .high
-
+private func render(source: CGImageSource, plan: RenderPlan, preset: OutputPreset) throws -> CGImage {
     let image = try normalizedImage(
         from: source,
         maximumPixelSize: max(plan.imageWidth, plan.imageHeight)
     )
+    let colorSpace = try destinationColorSpace(for: image, preset: preset)
+
+    let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue)
+    guard
+        let context = CGContext(
+            data: nil,
+            width: plan.canvasWidth,
+            height: plan.canvasHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo.rawValue
+        ),
+        let white = CGColor(colorSpace: colorSpace, components: [1, 1, 1, 1])
+    else {
+        throw BorderMeError.cannotRender
+    }
+
+    context.setFillColor(white)
+    context.fill(CGRect(x: 0, y: 0, width: plan.canvasWidth, height: plan.canvasHeight))
+    context.interpolationQuality = .high
+
     let destination = CGRect(
         x: plan.imageOriginX,
         y: plan.imageOriginY,
@@ -220,22 +260,65 @@ private func render(source: CGImageSource, plan: RenderPlan) throws -> CGImage {
     return rendered
 }
 
-private func writeJPEG(_ image: CGImage, to outputURL: URL, quality: Double) throws {
+/// Authorship and capture metadata is carried across so the bordered copy is
+/// still attributable. Location is deliberately left behind: these files are
+/// made to be posted, and GPS coordinates are rarely something you meant to
+/// publish along with them.
+private func preservedMetadata(from source: CGImageSource) -> [CFString: Any] {
+    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
+        return [:]
+    }
+
+    let carried: [CFString] = [
+        kCGImagePropertyTIFFDictionary,
+        kCGImagePropertyExifDictionary,
+        kCGImagePropertyExifAuxDictionary,
+        kCGImagePropertyIPTCDictionary
+    ]
+    // The pixels have already been rotated and resized, so any dimension or
+    // orientation the original recorded would now be a lie.
+    let stale: [CFString] = [
+        kCGImagePropertyTIFFOrientation,
+        kCGImagePropertyExifPixelXDimension,
+        kCGImagePropertyExifPixelYDimension,
+        kCGImagePropertyExifColorSpace
+    ]
+
+    var preserved: [CFString: Any] = [:]
+    for key in carried {
+        guard var dictionary = properties[key] as? [CFString: Any] else { continue }
+        for staleKey in stale {
+            dictionary.removeValue(forKey: staleKey)
+        }
+        if !dictionary.isEmpty {
+            preserved[key] = dictionary
+        }
+    }
+    return preserved
+}
+
+private func writeJPEG(
+    _ image: CGImage,
+    to outputURL: URL,
+    quality: Double,
+    metadata: [CFString: Any]
+) throws {
     guard let destination = CGImageDestinationCreateWithURL(
         outputURL as CFURL,
         UTType.jpeg.identifier as CFString,
         1,
         nil
     ) else {
-        throw BorderMeError.cannotWrite(outputURL.path)
+        throw BorderMeError.cannotWrite
     }
 
-    let properties: [CFString: Any] = [
-        kCGImageDestinationLossyCompressionQuality: quality
-    ]
+    var properties = metadata
+    properties[kCGImageDestinationLossyCompressionQuality] = quality
+    properties[kCGImagePropertyOrientation] = 1
+
     CGImageDestinationAddImage(destination, image, properties as CFDictionary)
     guard CGImageDestinationFinalize(destination) else {
-        throw BorderMeError.cannotWrite(outputURL.path)
+        throw BorderMeError.cannotWrite
     }
 }
 
@@ -252,9 +335,16 @@ private func run() throws {
     let inputURL = URL(fileURLWithPath: arguments[1])
     let outputURL = URL(fileURLWithPath: arguments[2])
     guard let source = CGImageSourceCreateWithURL(inputURL as CFURL, nil) else {
-        throw BorderMeError.cannotRead(inputURL.path)
+        throw BorderMeError.cannotRead
     }
-    guard CGImageSourceGetCount(source) == 1 else {
+
+    // An empty or corrupt file still produces an image source, it just has no
+    // images in it. That is a different failure from a multi-frame animation.
+    let frameCount = CGImageSourceGetCount(source)
+    guard frameCount > 0 else {
+        throw BorderMeError.notAnImage
+    }
+    guard frameCount == 1 else {
         throw BorderMeError.animatedImage
     }
 
@@ -276,8 +366,13 @@ private func run() throws {
         )
     }
 
-    let image = try render(source: source, plan: plan)
-    try writeJPEG(image, to: outputURL, quality: preset.jpegQuality)
+    let image = try render(source: source, plan: plan, preset: preset)
+    try writeJPEG(
+        image,
+        to: outputURL,
+        quality: preset.jpegQuality,
+        metadata: preservedMetadata(from: source)
+    )
 }
 
 do {
