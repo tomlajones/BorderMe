@@ -3,9 +3,14 @@
 set -u
 
 APP_NAME="BorderMe"
-ENGINE="${BORDERME_ENGINE:-$HOME/Library/Services/BorderMe.workflow/Contents/Resources/borderme-engine}"
+# The engine sits beside this script, so locate it relative to our own path.
+# That keeps working if the bundle is renamed or installed somewhere other
+# than ~/Library/Services.
+SCRIPT_DIR=$(cd -- "$(/usr/bin/dirname -- "$0")" && pwd)
+ENGINE="${BORDERME_ENGINE:-$SCRIPT_DIR/borderme-engine}"
 NO_NOTIFY="${BORDERME_NO_NOTIFY:-0}"
 CURRENT_TEMP=""
+ERROR_FILE=""
 FAILURE_DETAILS=""
 FAILURE_COUNT=0
 SUCCESS_COUNT=0
@@ -13,6 +18,9 @@ SUCCESS_COUNT=0
 cleanup() {
     if [ -n "$CURRENT_TEMP" ] && [ -e "$CURRENT_TEMP" ]; then
         /bin/rm -f "$CURRENT_TEMP"
+    fi
+    if [ -n "$ERROR_FILE" ] && [ -e "$ERROR_FILE" ]; then
+        /bin/rm -f "$ERROR_FILE"
     fi
 }
 trap cleanup EXIT HUP INT TERM
@@ -137,6 +145,25 @@ if [ ! -x "$ENGINE" ]; then
     show_alert "The BorderMe image engine is missing. Reinstall BorderMe.workflow and try again."
     exit 1
 fi
+
+# Run the engine with no arguments: a healthy one prints its usage line. If it
+# prints anything else, it exists but cannot execute — almost always Gatekeeper
+# quarantine on a freshly downloaded copy, or an engine built for another
+# processor architecture.
+ENGINE_HEALTH=$("$ENGINE" 2>&1 >/dev/null)
+case "$ENGINE_HEALTH" in
+    Usage:*)
+        ;;
+    *)
+        BUNDLE=$(cd -- "$SCRIPT_DIR/../.." && pwd)
+        show_alert "macOS is blocking the BorderMe image engine.
+
+Open Terminal, paste the line below, press Return, then try again:
+
+xattr -dr com.apple.quarantine \"$BUNDLE\""
+        exit 1
+        ;;
+esac
 
 BORDER=$(choose_border)
 if [ "$BORDER" = "cancel" ] || [ -z "$BORDER" ]; then

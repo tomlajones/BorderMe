@@ -54,8 +54,19 @@
 				<key>ActionParameters</key>
 				<dict>
 					<key>COMMAND_STRING</key>
-					<string>SCRIPT="$HOME/Library/Services/BorderMe.workflow/Contents/Resources/borderme.sh"
-if [ ! -f "$SCRIPT" ]; then
+					<string># Find the BorderMe bundle rather than assuming its name or location, so a
+# renamed copy or a machine-wide install in /Library/Services still works.
+SCRIPT=""
+for BASE in "$HOME/Library/Services" "/Library/Services"; do
+    for BUNDLE in "$BASE"/*.workflow; do
+        CANDIDATE="$BUNDLE/Contents/Resources/borderme.sh"
+        if [ -f "$CANDIDATE" ]; then
+            SCRIPT="$CANDIDATE"
+            break 2
+        fi
+    done
+done
+if [ -z "$SCRIPT" ]; then
     osascript -e 'display dialog "BorderMe is missing a required file. Reinstall BorderMe.workflow and try again." with title "BorderMe" buttons {"OK"} default button "OK" with icon caution'
     exit 1
 fi
