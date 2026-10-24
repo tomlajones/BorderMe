@@ -75,7 +75,7 @@ APPLESCRIPT
 
 choose_output() {
     case "${BORDERME_OUTPUT:-}" in
-        small|medium|large|instagram-portrait|instagram-landscape)
+        small|medium|large|instagram-portrait|instagram-tall|instagram-landscape)
             /bin/echo "$BORDERME_OUTPUT"
             return
             ;;
@@ -83,7 +83,7 @@ choose_output() {
 
     /usr/bin/osascript <<'APPLESCRIPT'
 try
-    set choices to {"Small - up to 1200 px", "Medium - up to 2400 px", "Large - original resolution", "Instagram Portrait - 1080 x 1440", "Instagram Landscape - 1080 x 566"}
+    set choices to {"Small - up to 1200 px", "Medium - up to 2400 px", "Large - original resolution", "Instagram Portrait 4:5 - full resolution", "Instagram Tall 3:4 - full resolution", "Instagram Landscape 1.91:1 - full resolution"}
     set picked to choose from list choices with title "BorderMe" with prompt "Choose output size:" default items {"Medium - up to 2400 px"} OK button name "Create" cancel button name "Cancel"
     if picked is false then return "cancel"
     set selectedChoice to item 1 of picked
@@ -91,6 +91,7 @@ try
     if selectedChoice starts with "Medium" then return "medium"
     if selectedChoice starts with "Large" then return "large"
     if selectedChoice starts with "Instagram Portrait" then return "instagram-portrait"
+    if selectedChoice starts with "Instagram Tall" then return "instagram-tall"
     return "instagram-landscape"
 on error number -128
     return "cancel"

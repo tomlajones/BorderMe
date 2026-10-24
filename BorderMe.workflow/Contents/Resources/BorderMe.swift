@@ -53,6 +53,7 @@ private enum OutputPreset: String {
     case medium
     case large
     case instagramPortrait = "instagram-portrait"
+    case instagramTall = "instagram-tall"
     case instagramLandscape = "instagram-landscape"
 
     var jpegQuality: Double {
@@ -60,7 +61,7 @@ private enum OutputPreset: String {
         case .small: return 0.75
         case .medium: return 0.85
         case .large: return 0.92
-        case .instagramPortrait, .instagramLandscape: return 0.92
+        case .instagramPortrait, .instagramTall, .instagramLandscape: return 0.92
         }
     }
 
@@ -68,18 +69,31 @@ private enum OutputPreset: String {
         switch self {
         case .small: return 1_200
         case .medium: return 2_400
-        case .large, .instagramPortrait, .instagramLandscape: return nil
+        case .large, .instagramPortrait, .instagramTall, .instagramLandscape: return nil
         }
     }
 
-    var instagramCanvas: (width: Int, height: Int)? {
+    /// Instagram presets are an exact aspect ratio rather than a fixed pixel
+    /// size, so a high-resolution photo keeps its resolution. 1.91:1 is
+    /// written as 191:100 so the canvas lands on that ratio exactly.
+    var instagramRatio: (width: Int, height: Int)? {
         switch self {
-        case .instagramPortrait: return (1_080, 1_440)
-        case .instagramLandscape: return (1_080, 566)
+        case .instagramPortrait: return (4, 5)
+        case .instagramTall: return (3, 4)
+        case .instagramLandscape: return (191, 100)
         case .small, .medium, .large: return nil
         }
     }
 }
+
+/// Instagram displays posts 1080 px wide, so a canvas narrower than that would
+/// only be upscaled by Instagram itself.
+private let instagramMinimumWidth = 1_080
+
+/// Far beyond anything Instagram displays, and it keeps the render buffer for
+/// a very large photo to a few hundred megabytes. Rounding the canvas up to
+/// an exact ratio can land it a little past this.
+private let instagramMaximumEdge = 8_192
 
 private struct RenderPlan {
     let canvasWidth: Int
@@ -155,30 +169,61 @@ private func standardPlan(
     )
 }
 
+private func ceilingDivide(_ value: Int, _ divisor: Int) -> Int {
+    return (value + divisor - 1) / divisor
+}
+
+/// Builds the smallest exact-ratio canvas that holds the whole photo plus its
+/// border on every side. The photo is never cropped; whichever axis has spare
+/// room gets the extra white.
 private func instagramPlan(
     width: Int,
     height: Int,
     border: BorderSize,
-    canvas: (width: Int, height: Int)
+    ratio: (width: Int, height: Int)
 ) -> RenderPlan {
-    let margin = max(1, Int((Double(min(canvas.width, canvas.height)) * border.fraction).rounded()))
-    let availableWidth = max(1, canvas.width - (2 * margin))
-    let availableHeight = max(1, canvas.height - (2 * margin))
+    // Only a photo too large for the canvas cap is scaled, and only down.
+    let margin = Double(min(width, height)) * border.fraction
+    let fitWidth = Double(instagramMaximumEdge) * Double(ratio.width) / Double(max(ratio.width, ratio.height))
+    let fitHeight = Double(instagramMaximumEdge) * Double(ratio.height) / Double(max(ratio.width, ratio.height))
+    let scale = min(
+        1.0,
+        fitWidth / (Double(width) + 2 * margin),
+        fitHeight / (Double(height) + 2 * margin)
+    )
 
-    let widthScale = Double(availableWidth) / Double(width)
-    let heightScale = Double(availableHeight) / Double(height)
-    let scale = min(1.0, widthScale, heightScale)
-    var imageWidth = min(max(1, Int((Double(width) * scale).rounded(.down))), availableWidth)
-    var imageHeight = min(max(1, Int((Double(height) * scale).rounded(.down))), availableHeight)
+    var imageWidth = max(1, Int((Double(width) * scale).rounded(.down)))
+    var imageHeight = max(1, Int((Double(height) * scale).rounded(.down)))
+    let scaledMargin = max(1, Int((margin * scale).rounded()))
 
-    // The canvas is a fixed size here, so symmetry comes from trimming the
-    // image by a pixel rather than growing the canvas.
-    if (canvas.width - imageWidth) % 2 != 0 { imageWidth = max(1, imageWidth - 1) }
-    if (canvas.height - imageHeight) % 2 != 0 { imageHeight = max(1, imageHeight - 1) }
+    // The canvas is ratio.width x ratio.height multiplied by a whole number,
+    // which is what makes the ratio exact rather than approximate.
+    var unit = max(
+        ceilingDivide(imageWidth + 2 * scaledMargin, ratio.width),
+        ceilingDivide(imageHeight + 2 * scaledMargin, ratio.height),
+        ceilingDivide(instagramMinimumWidth, ratio.width)
+    )
+
+    // Borders are split evenly, so each axis needs the canvas and image to
+    // differ by an even number of pixels. One step up in canvas size often
+    // fixes that; anything left is fixed by shrinking the image a pixel.
+    func parityMismatches(_ candidate: Int) -> Int {
+        let widthOff = (candidate * ratio.width - imageWidth) % 2 != 0 ? 1 : 0
+        let heightOff = (candidate * ratio.height - imageHeight) % 2 != 0 ? 1 : 0
+        return widthOff + heightOff
+    }
+    if parityMismatches(unit + 1) < parityMismatches(unit) {
+        unit += 1
+    }
+
+    let canvasWidth = unit * ratio.width
+    let canvasHeight = unit * ratio.height
+    if (canvasWidth - imageWidth) % 2 != 0 { imageWidth = max(1, imageWidth - 1) }
+    if (canvasHeight - imageHeight) % 2 != 0 { imageHeight = max(1, imageHeight - 1) }
 
     return RenderPlan(
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
+        canvasWidth: canvasWidth,
+        canvasHeight: canvasHeight,
         imageWidth: imageWidth,
         imageHeight: imageHeight
     )
@@ -205,7 +250,7 @@ private func destinationColorSpace(for image: CGImage, preset: OutputPreset) thr
     guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB) else {
         throw BorderMeError.cannotRender
     }
-    guard preset.instagramCanvas == nil else {
+    guard preset.instagramRatio == nil else {
         return sRGB
     }
     guard
@@ -350,12 +395,12 @@ private func run() throws {
 
     let dimensions = try orientedDimensions(from: source)
     let plan: RenderPlan
-    if let canvas = preset.instagramCanvas {
+    if let ratio = preset.instagramRatio {
         plan = instagramPlan(
             width: dimensions.width,
             height: dimensions.height,
             border: border,
-            canvas: canvas
+            ratio: ratio
         )
     } else {
         plan = standardPlan(
