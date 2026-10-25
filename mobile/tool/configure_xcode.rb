@@ -40,11 +40,13 @@ runner.resources_build_phase.add_file_reference(reference_in(runner_group, 'Priv
 reference_in(runner_group, 'Runner.entitlements')
 
 runner.build_configurations.each do |config|
+  config.build_settings['TARGETED_DEVICE_FAMILY'] = '1' # iPhone only; iPad runs it scaled
   config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
   config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/Runner.entitlements'
 end
 
 project.build_configurations.each do |config|
+  config.build_settings['TARGETED_DEVICE_FAMILY'] = '1'
   config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
 end
 project.targets.select { |t| t.name == 'RunnerTests' }.each do |target|
@@ -96,7 +98,7 @@ extension.build_configurations.each do |config|
   settings['GENERATE_INFOPLIST_FILE'] = 'NO'
   settings['CODE_SIGN_ENTITLEMENTS'] = 'ShareExtension/ShareExtension.entitlements'
   settings['SWIFT_VERSION'] = '5.0'
-  settings['TARGETED_DEVICE_FAMILY'] = '1,2'
+  settings['TARGETED_DEVICE_FAMILY'] = '1'
   settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
   settings['DEVELOPMENT_TEAM'] = runner_team[config.name] if runner_team[config.name]
   settings['SKIP_INSTALL'] = 'YES'

@@ -37,9 +37,9 @@ From the Share sheet. Select photos in the Photos app, tap Share, and choose Bor
 
 Your originals are never touched. BorderMe adds new copies to your library and leaves the first ones exactly as they were. It only asks for permission to add photos, never to read your library; you choose which photos to hand over each time.
 
-Looks after your details. Copyright, camera, lens and capture date all carry across to the bordered copy, so it's still yours and still says so. Location is removed, because GPS coordinates are rarely something you meant to publish along with the picture. The Instagram shapes and Square convert to sRGB, which is what Instagram expects; Original keeps your photo's own colour profile.
+Looks after your details. Copyright, camera, lens and capture date all carry across to the bordered copy, so it's still yours and still says so. Location is removed (GPS coordinates and IPTC place names), because they are rarely something you meant to publish along with the picture. The Instagram shapes and Square convert to sRGB, which is what Instagram expects; Original keeps your photo's own colour profile.
 
-No accounts, no network, no analytics, no ads. Your photos never leave your phone, and BorderMe collects nothing about you. It's free, and it's a small thing made with care.
+No accounts, no analytics, no ads, and no networking code at all: BorderMe never connects to the internet. Your photos never leave your phone, and BorderMe collects nothing about you. It's free, and it's a small thing made with care.
 
 If something breaks or a preset you want is missing, open an issue on GitHub and tell me about it. Thank you for trying it.
 

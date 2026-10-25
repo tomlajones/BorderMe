@@ -87,7 +87,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 - The canvas is `ratio.width x ratio.height` multiplied by a whole number, so ratios are exact.
 - The canvas is the smallest that fits the photo plus its border on all sides. The spare axis gets extra border.
 - Photos are never cropped and never upscaled. A canvas is at least 1080 px wide.
-- The long-edge cap is about 8192 px in the app and about 3072 px in the Share extension, because of the extension's roughly 120 MB memory limit. Only photos over the cap are scaled, and only down.
+- The long-edge cap is about 8192 px in the app and about 3072 px in the Share extension, because of the extension's roughly 120 MB memory limit. Only photos over the cap are scaled, and only down. The cap is approximate: a ratio canvas is rounded up to a whole number of ratio units, so it can exceed the cap by up to one unit (about 190 px for 1.91:1).
 - Borders are split evenly: one canvas step up fixes parity, otherwise the image shrinks by one pixel.
 - Instagram presets and Square convert to sRGB. Original keeps the source's RGB profile.
 - JPEG quality is 0.92.
@@ -116,7 +116,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 ## Metadata and privacy
 
 - Kept: TIFF, EXIF, EXIF Aux and IPTC (copyright, camera, lens, capture date). Stale orientation, dimension and colour-space tags are removed.
-- Removed: GPS/location, as on the Mac.
+- Removed: GPS/location, including the IPTC place names (city, province or state, country name and code, sub-location). The Mac engine is unchanged.
 - Permission: add-only Photos access (`NSPhotoLibraryAddUsageDescription`). The picker itself needs no permission.
 - No network access, accounts, analytics or third-party SDKs that collect data. The App Store privacy label is "Data Not Collected". The privacy policy is a short single page.
 
