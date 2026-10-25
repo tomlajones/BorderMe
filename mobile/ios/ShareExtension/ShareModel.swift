@@ -19,6 +19,8 @@ final class ShareModel: ObservableObject {
     }
     @Published private(set) var stage: Stage = .loading
     @Published private(set) var preview: UIImage?
+    /// The preview could not be rendered. Saving may still work.
+    @Published private(set) var previewFailed = false
     private(set) var paths: [String] = []
     private var unopened = 0
     private let renderQueue = DispatchQueue(label: "borderme.share.render", qos: .userInitiated)
@@ -50,6 +52,7 @@ final class ShareModel: ObservableObject {
             DispatchQueue.main.async {
                 guard let self, self.settings == requested else { return }
                 self.preview = image
+                self.previewFailed = image == nil
             }
         }
     }

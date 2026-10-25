@@ -40,9 +40,24 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         lock.unlock()
         setMemoryWarned(false)
         let batchID = UUID().uuidString
+        // Asks iOS for time to finish if the phone is locked mid-batch. If the
+        // time runs out, stop cleanly after the current photo and let go.
+        var background = UIBackgroundTaskIdentifier.invalid
+        let endBackground = {
+            DispatchQueue.main.async {
+                guard background != .invalid else { return }
+                UIApplication.shared.endBackgroundTask(background)
+                background = .invalid
+            }
+        }
+        background = UIApplication.shared.beginBackgroundTask(withName: "BorderMe batch") { [weak self] in
+            self?.setMemoryWarned(true)
+            endBackground()
+        }
         Task.detached(priority: .userInitiated) { [weak self] in
             await self?.run(paths: paths, settings: settings, batchID: batchID)
             self?.setRunning(false)
+            endBackground()
         }
         return true
     }

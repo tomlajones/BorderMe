@@ -38,7 +38,15 @@ final class RendererTests: XCTestCase {
                 kCGImagePropertyTIFFCopyright: "Copyright Tom Jones",
                 kCGImagePropertyTIFFArtist: "Tom Jones"
             ],
-            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:23 12:00:00"]
+            kCGImagePropertyExifDictionary: [kCGImagePropertyExifDateTimeOriginal: "2026:10:23 12:00:00"],
+            kCGImagePropertyIPTCDictionary: [
+                kCGImagePropertyIPTCCopyrightNotice: "Copyright Tom Jones",
+                kCGImagePropertyIPTCCity: "London",
+                kCGImagePropertyIPTCProvinceState: "England",
+                kCGImagePropertyIPTCCountryPrimaryLocationName: "United Kingdom",
+                kCGImagePropertyIPTCCountryPrimaryLocationCode: "GBR",
+                kCGImagePropertyIPTCSubLocation: "Hampstead Heath"
+            ]
         ]
         CGImageDestinationAddImage(destination, image, properties as CFDictionary)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
@@ -122,6 +130,15 @@ final class RendererTests: XCTestCase {
         XCTAssertEqual(tiff[kCGImagePropertyTIFFCopyright] as? String, "Copyright Tom Jones")
         let exif = try XCTUnwrap(output[kCGImagePropertyExifDictionary] as? [CFString: Any])
         XCTAssertEqual(exif[kCGImagePropertyExifDateTimeOriginal] as? String, "2026:10:23 12:00:00")
+        let iptc = try XCTUnwrap(output[kCGImagePropertyIPTCDictionary] as? [CFString: Any])
+        XCTAssertEqual(iptc[kCGImagePropertyIPTCCopyrightNotice] as? String, "Copyright Tom Jones")
+        for name in [
+            kCGImagePropertyIPTCCity, kCGImagePropertyIPTCProvinceState,
+            kCGImagePropertyIPTCCountryPrimaryLocationName, kCGImagePropertyIPTCCountryPrimaryLocationCode,
+            kCGImagePropertyIPTCSubLocation
+        ] {
+            XCTAssertNil(iptc[name], "\(name)")
+        }
     }
 
     func testInstagramConvertsToSRGBAndOriginalKeepsDisplayP3() throws {
@@ -168,6 +185,8 @@ final class RendererTests: XCTestCase {
         }
         let stored = try XCTUnwrap(context.makeImage())
 
+        // The Share extension's cap takes the leaner, slower decode path.
+        for cap in [EngineLimits.appMaximumEdge, EngineLimits.extensionMaximumEdge] {
         for type in [UTType.jpeg, UTType.heic] {
             for orientation in 1...8 {
                 let url = directory.appendingPathComponent("o\(orientation).\(type.preferredFilenameExtension ?? "img")")
@@ -186,11 +205,11 @@ final class RendererTests: XCTestCase {
                 let expected = try pixels(of: try jpegData(upright))
 
                 let settings = RenderSettings(border: .medium, colour: .white, size: .original)
-                let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: EngineLimits.appMaximumEdge)
+                let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: cap)
                 let actual = try pixels(of: rendered.jpegData)
                 let plan = RenderPlanner.plan(
                     sourceWidth: upright.width, sourceHeight: upright.height,
-                    border: .medium, preset: .original, maximumEdge: EngineLimits.appMaximumEdge
+                    border: .medium, preset: .original, maximumEdge: cap
                 )
                 XCTAssertEqual(actual.width, plan.canvasWidth, "\(type) \(orientation)")
                 XCTAssertEqual(actual.height, plan.canvasHeight, "\(type) \(orientation)")
@@ -205,11 +224,12 @@ final class RendererTests: XCTestCase {
                     for channel in 0..<3 {
                         XCTAssertEqual(
                             Int(actual.bytes[a + channel]), Int(expected.bytes[e + channel]), accuracy: 24,
-                            "\(type) orientation \(orientation) at (\(fx), \(fy))"
+                            "\(type) orientation \(orientation) cap \(cap) at (\(fx), \(fy))"
                         )
                     }
                 }
             }
+        }
         }
     }
 

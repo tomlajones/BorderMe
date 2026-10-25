@@ -60,6 +60,10 @@ struct ShareView: View {
             Group {
                 if let preview = model.preview {
                     Image(uiImage: preview).resizable().scaledToFit().shadow(radius: 4)
+                } else if model.previewFailed {
+                    Text("Preview unavailable — you can still save.")
+                        .font(.footnote).foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
                 } else {
                     ProgressView()
                 }

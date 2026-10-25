@@ -283,7 +283,9 @@ public enum Renderer {
                 data: nil, width: canvasWidth, height: canvasHeight, bitsPerComponent: 8, bytesPerRow: 0,
                 space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
             ),
-            let fill = CGColor(colorSpace: space, components: [rgb.red, rgb.green, rgb.blue, 1])
+            // The border colours are sRGB values; Core Graphics converts the fill
+            // into the canvas space (which may be Display P3).
+            let fill = Optional(CGColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: 1))
         else {
             throw BorderEngineError.cannotRender
         }
@@ -299,7 +301,8 @@ public enum Renderer {
 
     /// Authorship and capture metadata is carried across so the bordered copy
     /// is still attributable. Location is deliberately left behind: these
-    /// files are made to be posted.
+    /// files are made to be posted. That means GPS, and the place names in
+    /// the IPTC block.
     private static func preservedMetadata(from source: CGImageSource) -> [CFString: Any] {
         guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else {
             return [:]
@@ -318,10 +321,20 @@ public enum Renderer {
             kCGImagePropertyExifPixelYDimension,
             kCGImagePropertyExifColorSpace
         ]
+        let locationNames: [CFString] = [
+            kCGImagePropertyIPTCCity,
+            kCGImagePropertyIPTCProvinceState,
+            kCGImagePropertyIPTCCountryPrimaryLocationName,
+            kCGImagePropertyIPTCCountryPrimaryLocationCode,
+            kCGImagePropertyIPTCSubLocation
+        ]
         var preserved: [CFString: Any] = [:]
         for key in carried {
             guard var dictionary = properties[key] as? [CFString: Any] else { continue }
             for staleKey in stale { dictionary.removeValue(forKey: staleKey) }
+            if key == kCGImagePropertyIPTCDictionary {
+                for name in locationNames { dictionary.removeValue(forKey: name) }
+            }
             if !dictionary.isEmpty { preserved[key] = dictionary }
         }
         return preserved
