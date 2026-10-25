@@ -53,7 +53,56 @@ project.targets.select { |t| t.name == 'RunnerTests' }.each do |target|
   end
 end
 
-# --- Share extension (added in Task 7) ---
+# --- Share extension ---
+
+EXTENSION_NAME = 'ShareExtension'
+EXTENSION_FILES = %w[ShareViewController.swift ShareModel.swift ShareView.swift].freeze
+
+extension = project.targets.find { |t| t.name == EXTENSION_NAME }
+unless extension
+  extension = project.new_target(:app_extension, EXTENSION_NAME, :ios, '16.0')
+  runner.add_dependency(extension)
+  embed = runner.new_copy_files_build_phase('Embed Foundation Extensions')
+  embed.dst_subfolder_spec = '13'
+  embedded = embed.add_file_reference(extension.product_reference, true)
+  embedded.settings = { 'ATTRIBUTES' => ['RemoveHeadersOnCopy'] }
+  # Flutter's "Thin Binary" script must run after the extension is embedded,
+  # otherwise Xcode reports a dependency cycle in Runner.
+  thin = runner.build_phases.find { |p| p.display_name == 'Thin Binary' }
+  if thin
+    runner.build_phases.delete(embed)
+    runner.build_phases.insert(runner.build_phases.index(thin), embed)
+  end
+end
+extension.add_build_configuration('Profile', :release) unless extension.build_configurations.any? { |c| c.name == 'Profile' }
+
+extension_group = group_for(project, EXTENSION_NAME, EXTENSION_NAME)
+add_sources(extension_group, extension, EXTENSION_FILES)
+add_sources(engine_group, extension, ENGINE_FILES)
+add_sources(shared_group, extension, SHARED_FILES)
+extension.resources_build_phase.add_file_reference(reference_in(extension_group, 'PrivacyInfo.xcprivacy'), true)
+%w[Info.plist ShareExtension.entitlements].each { |f| reference_in(extension_group, f) }
+
+# The extension shares Runner's Flutter xcconfig, which provides
+# FLUTTER_BUILD_NAME and FLUTTER_BUILD_NUMBER, so both report the same version.
+runner_bases = runner.build_configurations.to_h { |c| [c.name, c.base_configuration_reference] }
+runner_team = runner.build_configurations.to_h { |c| [c.name, c.build_settings['DEVELOPMENT_TEAM']] }
+extension.build_configurations.each do |config|
+  config.base_configuration_reference = runner_bases[config.name] || runner_bases['Release']
+  settings = config.build_settings
+  settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.tomlajones.borderme.share'
+  settings['PRODUCT_NAME'] = '$(TARGET_NAME)'
+  settings['INFOPLIST_FILE'] = 'ShareExtension/Info.plist'
+  settings['GENERATE_INFOPLIST_FILE'] = 'NO'
+  settings['CODE_SIGN_ENTITLEMENTS'] = 'ShareExtension/ShareExtension.entitlements'
+  settings['SWIFT_VERSION'] = '5.0'
+  settings['TARGETED_DEVICE_FAMILY'] = '1,2'
+  settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+  settings['DEVELOPMENT_TEAM'] = runner_team[config.name] if runner_team[config.name]
+  settings['SKIP_INSTALL'] = 'YES'
+  settings['APPLICATION_EXTENSION_API_ONLY'] = 'YES'
+  settings['LD_RUNPATH_SEARCH_PATHS'] = ['$(inherited)', '@executable_path/Frameworks', '@executable_path/../../Frameworks']
+end
 
 project.save
 puts 'Xcode project configured.'
