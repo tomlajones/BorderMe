@@ -15,7 +15,10 @@ class SkippedPhoto {
 }
 
 class SessionController extends ChangeNotifier {
-  SessionController(this.engine, {this.debounce = const Duration(milliseconds: 300)}) {
+  SessionController(
+    this.engine, {
+    this.debounce = const Duration(milliseconds: 300),
+  }) {
     _loading = engine.pickLoading.listen((_) {
       if (phase != Phase.start) return;
       phase = Phase.loading;
@@ -37,6 +40,12 @@ class SessionController extends ChangeNotifier {
   int failedToLoad = 0;
   int currentIndex = 0;
   final Map<int, Uint8List> previews = {};
+  final Map<int, RenderSettings> _renderedWith = {};
+
+  /// True when the preview for [index] was rendered with the current settings.
+  /// After a settings change the old image stays until the new one arrives.
+  bool isPreviewCurrent(int index) =>
+      previews.containsKey(index) && _renderedWith[index] == settings;
   String? previewError;
 
   int saved = 0;
@@ -45,6 +54,7 @@ class SessionController extends ChangeNotifier {
   final List<SkippedPhoto> skipped = [];
   bool stoppedLowMemory = false;
   bool permissionDenied = false;
+
   /// Set when saving failed part way through. The Done screen shows it.
   String? saveError;
 
@@ -79,6 +89,7 @@ class SessionController extends ChangeNotifier {
     photos = result.paths;
     currentIndex = 0;
     previews.clear();
+    _renderedWith.clear();
     previewError = null;
     phase = Phase.editing;
     _notify();
@@ -90,7 +101,6 @@ class SessionController extends ChangeNotifier {
   void updateSettings(RenderSettings next) {
     if (next == settings) return;
     settings = next;
-    previews.clear();
     previewError = null;
     unawaited(engine.saveSettings(next));
     _previewTimer?.cancel();
@@ -102,7 +112,7 @@ class SessionController extends ChangeNotifier {
     currentIndex = index;
     previewError = null;
     _notify();
-    if (!previews.containsKey(index)) unawaited(_loadPreview(index));
+    if (!isPreviewCurrent(index)) unawaited(_loadPreview(index));
   }
 
   Future<void> _loadPreview(int index) async {
@@ -112,11 +122,17 @@ class SessionController extends ChangeNotifier {
     try {
       final bytes = await engine.preview(path, requested);
       // Settings or photos changed while this was rendering: drop it.
-      if (requested != settings || index >= photos.length || photos[index] != path) return;
+      if (requested != settings ||
+          index >= photos.length ||
+          photos[index] != path) {
+        return;
+      }
       previews[index] = bytes;
+      _renderedWith[index] = requested;
     } catch (_) {
       if (requested != settings || index != currentIndex) return;
-      previewError = "This photo couldn't be previewed. It may be skipped when you save.";
+      previewError =
+          "This photo couldn't be previewed. It may be skipped when you save.";
     }
     _notify();
   }
@@ -179,6 +195,7 @@ class SessionController extends ChangeNotifier {
     _previewTimer?.cancel();
     photos = const [];
     previews.clear();
+    _renderedWith.clear();
     previewError = null;
     saveError = null;
     currentIndex = 0;

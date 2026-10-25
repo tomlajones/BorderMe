@@ -10,22 +10,32 @@ Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 20));
 
 void main() {
   test('init loads the last-used settings', () async {
-    const stored = RenderSettings(border: BorderSize.large, colour: BorderColour.black, size: SizePreset.square);
-    final controller = SessionController(FakeEngine(stored: stored), debounce: Duration.zero);
+    const stored = RenderSettings(
+      border: BorderSize.large,
+      colour: BorderColour.black,
+      size: SizePreset.square,
+    );
+    final controller = SessionController(
+      FakeEngine(stored: stored),
+      debounce: Duration.zero,
+    );
     await controller.init();
     expect(controller.settings, stored);
   });
 
-  test('choosing photos opens the editor and previews the first photo', () async {
-    final engine = FakeEngine();
-    final controller = SessionController(engine, debounce: Duration.zero);
-    await controller.choosePhotos();
-    await settle();
-    expect(controller.phase, Phase.editing);
-    expect(controller.photos, ['/tmp/a.jpg', '/tmp/b.jpg']);
-    expect(engine.previewRequests.single.$1, '/tmp/a.jpg');
-    expect(controller.previews[0], isNotNull);
-  });
+  test(
+    'choosing photos opens the editor and previews the first photo',
+    () async {
+      final engine = FakeEngine();
+      final controller = SessionController(engine, debounce: Duration.zero);
+      await controller.choosePhotos();
+      await settle();
+      expect(controller.phase, Phase.editing);
+      expect(controller.photos, ['/tmp/a.jpg', '/tmp/b.jpg']);
+      expect(engine.previewRequests.single.$1, '/tmp/a.jpg');
+      expect(controller.previews[0], isNotNull);
+    },
+  );
 
   test('the loading screen shows while picked photos copy', () async {
     final engine = FakeEngine();
@@ -35,13 +45,18 @@ void main() {
     expect(controller.phase, Phase.loading);
   });
 
-  test('a pick where nothing loads returns to the start and counts failures', () async {
-    final engine = FakeEngine(pickResult: const PickResult(paths: [], failed: 3));
-    final controller = SessionController(engine, debounce: Duration.zero);
-    await controller.choosePhotos();
-    expect(controller.phase, Phase.start);
-    expect(controller.failedToLoad, 3);
-  });
+  test(
+    'a pick where nothing loads returns to the start and counts failures',
+    () async {
+      final engine = FakeEngine(
+        pickResult: const PickResult(paths: [], failed: 3),
+      );
+      final controller = SessionController(engine, debounce: Duration.zero);
+      await controller.choosePhotos();
+      expect(controller.phase, Phase.start);
+      expect(controller.failedToLoad, 3);
+    },
+  );
 
   test('a busy picker is ignored without changing the phase', () async {
     final engine = FakeEngine()..busyPick = true;
@@ -53,35 +68,55 @@ void main() {
 
   test('rapid setting changes save each time but preview once', () async {
     final engine = FakeEngine();
-    final controller = SessionController(engine, debounce: const Duration(milliseconds: 50));
+    final controller = SessionController(
+      engine,
+      debounce: const Duration(milliseconds: 50),
+    );
     await controller.choosePhotos();
     await settle();
     engine.previewRequests.clear();
 
-    controller.updateSettings(controller.settings.copyWith(colour: BorderColour.black));
-    controller.updateSettings(controller.settings.copyWith(size: SizePreset.instagramTall));
-    controller.updateSettings(controller.settings.copyWith(border: BorderSize.large));
+    controller.updateSettings(
+      controller.settings.copyWith(colour: BorderColour.black),
+    );
+    controller.updateSettings(
+      controller.settings.copyWith(size: SizePreset.instagramTall),
+    );
+    controller.updateSettings(
+      controller.settings.copyWith(border: BorderSize.large),
+    );
     await Future<void>.delayed(const Duration(milliseconds: 120));
 
     expect(engine.savedSettings, hasLength(3));
     expect(engine.previewRequests, hasLength(1));
-    expect(engine.previewRequests.single.$2,
-        const RenderSettings(border: BorderSize.large, colour: BorderColour.black, size: SizePreset.instagramTall));
+    expect(
+      engine.previewRequests.single.$2,
+      const RenderSettings(
+        border: BorderSize.large,
+        colour: BorderColour.black,
+        size: SizePreset.instagramTall,
+      ),
+    );
   });
 
   test('a preview failure is shown on the current photo', () async {
-    final controller = SessionController(FakeEngine(failPreview: true), debounce: Duration.zero);
+    final controller = SessionController(
+      FakeEngine(failPreview: true),
+      debounce: Duration.zero,
+    );
     await controller.choosePhotos();
     await settle();
     expect(controller.previewError, isNotNull);
   });
 
   test('saving collects saved and skipped photos, then finishes', () async {
-    final engine = FakeEngine(events: const [
-      PhotoSaved(index: 0, thumbnailPath: '/tmp/t0.jpg'),
-      PhotoSkipped(index: 1, reason: 'not a readable image file'),
-      BatchFinished(saved: 1, total: 2),
-    ]);
+    final engine = FakeEngine(
+      events: const [
+        PhotoSaved(index: 0, thumbnailPath: '/tmp/t0.jpg'),
+        PhotoSkipped(index: 1, reason: 'not a readable image file'),
+        BatchFinished(saved: 1, total: 2),
+      ],
+    );
     final controller = SessionController(engine, debounce: Duration.zero);
     await controller.choosePhotos();
     await controller.save();
@@ -95,7 +130,12 @@ void main() {
 
   test('low memory and refused permission are reported', () async {
     final lowMemory = SessionController(
-      FakeEngine(events: const [PhotoSaved(index: 0, thumbnailPath: ''), BatchStopped(saved: 1, total: 2)]),
+      FakeEngine(
+        events: const [
+          PhotoSaved(index: 0, thumbnailPath: ''),
+          BatchStopped(saved: 1, total: 2),
+        ],
+      ),
       debounce: Duration.zero,
     );
     await lowMemory.choosePhotos();
@@ -103,7 +143,10 @@ void main() {
     expect(lowMemory.stoppedLowMemory, isTrue);
     expect(lowMemory.thumbnails, isEmpty);
 
-    final denied = SessionController(FakeEngine(events: const [PermissionDenied()]), debounce: Duration.zero);
+    final denied = SessionController(
+      FakeEngine(events: const [PermissionDenied()]),
+      debounce: Duration.zero,
+    );
     await denied.choosePhotos();
     await denied.save();
     expect(denied.permissionDenied, isTrue);
@@ -119,18 +162,24 @@ void main() {
     expect(controller.saveError, isNull);
   });
 
-  test('a stream error mid-batch ends on Done with the counts so far', () async {
-    final engine = FakeEngine(
-      events: const [PhotoSaved(index: 0, thumbnailPath: '/tmp/t0.jpg')],
-      streamError: PlatformException(code: 'x', message: 'event channel failed'),
-    );
-    final controller = SessionController(engine, debounce: Duration.zero);
-    await controller.choosePhotos();
-    await controller.save();
-    expect(controller.phase, Phase.done);
-    expect(controller.saveError, contains('1 of 2'));
-    expect(controller.thumbnails, ['/tmp/t0.jpg']);
-  });
+  test(
+    'a stream error mid-batch ends on Done with the counts so far',
+    () async {
+      final engine = FakeEngine(
+        events: const [PhotoSaved(index: 0, thumbnailPath: '/tmp/t0.jpg')],
+        streamError: PlatformException(
+          code: 'x',
+          message: 'event channel failed',
+        ),
+      );
+      final controller = SessionController(engine, debounce: Duration.zero);
+      await controller.choosePhotos();
+      await controller.save();
+      expect(controller.phase, Phase.done);
+      expect(controller.saveError, contains('1 of 2'));
+      expect(controller.thumbnails, ['/tmp/t0.jpg']);
+    },
+  );
 
   test('start again clears the session', () async {
     final controller = SessionController(FakeEngine(), debounce: Duration.zero);
@@ -141,4 +190,24 @@ void main() {
     expect(controller.previews, isEmpty);
     expect(controller.saveError, isNull);
   });
+
+  test(
+    'a settings change keeps the old preview until the new one arrives',
+    () async {
+      final controller = SessionController(
+        FakeEngine(),
+        debounce: const Duration(milliseconds: 20),
+      );
+      await controller.choosePhotos();
+      await settle();
+      expect(controller.isPreviewCurrent(0), isTrue);
+      controller.updateSettings(
+        controller.settings.copyWith(colour: BorderColour.black),
+      );
+      expect(controller.previews[0], isNotNull);
+      expect(controller.isPreviewCurrent(0), isFalse);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(controller.isPreviewCurrent(0), isTrue);
+    },
+  );
 }

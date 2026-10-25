@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -15,12 +16,37 @@ class EditScreen extends StatefulWidget {
 }
 
 class _EditScreenState extends State<EditScreen> {
-  late final PageController _pages = PageController(initialPage: widget.controller.currentIndex);
+  late final PageController _pages = PageController(
+    initialPage: widget.controller.currentIndex,
+  );
 
   @override
   void dispose() {
     _pages.dispose();
     super.dispose();
+  }
+
+  Future<void> _confirmDiscard() async {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard these photos?'),
+        content: const Text(
+          "Nothing has been saved yet, so you'll need to choose them again.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (discard == true) widget.controller.startAgain();
   }
 
   @override
@@ -29,48 +55,99 @@ class _EditScreenState extends State<EditScreen> {
     final count = c.photos.length;
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.close), tooltip: 'Start again', onPressed: c.startAgain),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          tooltip: 'Start again',
+          onPressed: _confirmDiscard,
+        ),
         title: Text(count == 1 ? '1 photo' : '${c.currentIndex + 1} of $count'),
       ),
       body: SafeArea(
-        child: Column(children: [
-          Expanded(
-            child: PageView.builder(
+        child: LayoutBuilder(
+          builder: (context, box) {
+            const saveHeight = 96.0;
+            const minPreview = 140.0;
+            final h = box.maxHeight;
+            final room = h - saveHeight - minPreview;
+            final panelMax = math.min(h * 0.45, room);
+            final compact = panelMax < 96;
+            final pager = PageView.builder(
               controller: _pages,
               itemCount: count,
               onPageChanged: c.showPhoto,
               itemBuilder: (context, i) => _Preview(
                 bytes: c.previews[i],
                 error: i == c.currentIndex ? c.previewError : null,
+                refreshing:
+                    c.previews[i] != null &&
+                    !c.isPreviewCurrent(i) &&
+                    c.previewError == null,
+                label: 'Preview of photo ${i + 1} of $count',
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: SettingsPanel(settings: c.settings, onChanged: c.updateSettings),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                key: const Key('save'),
-                onPressed: c.save,
-                child: Text(count == 1 ? 'Save 1 photo' : 'Save $count photos'),
+            );
+            final panel = Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: SettingsPanel(
+                settings: c.settings,
+                onChanged: c.updateSettings,
               ),
-            ),
-          ),
-        ]),
+            );
+            return Column(
+              children: [
+                Expanded(
+                  child: compact
+                      ? SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              SizedBox(height: minPreview, child: pager),
+                              panel,
+                            ],
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            Expanded(child: pager),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxHeight: panelMax),
+                              child: SingleChildScrollView(child: panel),
+                            ),
+                          ],
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const Key('save'),
+                      onPressed: c.save,
+                      child: Text(
+                        count == 1 ? 'Save 1 photo' : 'Save $count photos',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 }
 
 class _Preview extends StatelessWidget {
-  const _Preview({required this.bytes, required this.error});
+  const _Preview({
+    required this.bytes,
+    required this.error,
+    required this.refreshing,
+    required this.label,
+  });
 
   final Uint8List? bytes;
   final String? error;
+  final bool refreshing;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -79,13 +156,34 @@ class _Preview extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Center(
         child: image != null
-            ? DecoratedBox(
-                decoration: const BoxDecoration(boxShadow: [BoxShadow(blurRadius: 12, color: Color(0x33000000))]),
-                child: Image.memory(image, fit: BoxFit.contain, gaplessPlayback: true),
+            ? Semantics(
+                image: true,
+                label: label,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Opacity(
+                      opacity: refreshing ? 0.5 : 1,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          boxShadow: [
+                            BoxShadow(blurRadius: 12, color: Color(0x33000000)),
+                          ],
+                        ),
+                        child: Image.memory(
+                          image,
+                          fit: BoxFit.contain,
+                          gaplessPlayback: true,
+                        ),
+                      ),
+                    ),
+                    if (refreshing) const CircularProgressIndicator(),
+                  ],
+                ),
               )
             : error != null
-                ? Text(error!, textAlign: TextAlign.center)
-                : const CircularProgressIndicator(),
+            ? Text(error!, textAlign: TextAlign.center)
+            : const CircularProgressIndicator(),
       ),
     );
   }
