@@ -8,7 +8,6 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
     private let lock = NSLock()
     private var memoryWarned = false
     private var running = false
-    private let batchID = UUID().uuidString
     private var observer: NSObjectProtocol?
 
     override init() {
@@ -40,14 +39,15 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         running = true
         lock.unlock()
         setMemoryWarned(false)
+        let batchID = UUID().uuidString
         Task.detached(priority: .userInitiated) { [weak self] in
-            await self?.run(paths: paths, settings: settings)
+            await self?.run(paths: paths, settings: settings, batchID: batchID)
             self?.setRunning(false)
         }
         return true
     }
 
-    private func run(paths: [String], settings: RenderSettings) async {
+    private func run(paths: [String], settings: RenderSettings, batchID: String) async {
         guard await LibraryWriter.requestAccess() else {
             emit(["type": "denied"])
             return
@@ -67,7 +67,7 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
                 }
                 try await LibraryWriter.save(jpegData: rendered.jpegData)
                 saved += 1
-                emit(["type": "saved", "index": index, "thumbnail": thumbnail(for: url, settings: settings, index: index) ?? ""])
+                emit(["type": "saved", "index": index, "thumbnail": thumbnail(for: url, settings: settings, index: index, batchID: batchID) ?? ""])
             } catch {
                 emit(["type": "skipped", "index": index, "reason": FailureReason.describe(error)])
             }
@@ -75,7 +75,7 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         emit(["type": "finished", "saved": saved, "total": paths.count])
     }
 
-    private func thumbnail(for url: URL, settings: RenderSettings, index: Int) -> String? {
+    private func thumbnail(for url: URL, settings: RenderSettings, index: Int, batchID: String) -> String? {
         guard let preview = try? Renderer.preview(sourceURL: url, settings: settings, maximumEdge: 300) else { return nil }
         // A fresh name per batch stops Flutter's image cache showing stale thumbnails.
         let destination = url.deletingLastPathComponent().appendingPathComponent("thumb-\(batchID)-\(index).jpg")
