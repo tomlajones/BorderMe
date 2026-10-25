@@ -5,6 +5,8 @@ final class PhotoPicker: NSObject, PHPickerViewControllerDelegate {
     private var onLoading: ((Int) -> Void)?
     private var completion: ((PickedPhotos) -> Void)?
 
+    var isPending: Bool { completion != nil }
+
     func present(limit: Int, onLoading: @escaping (Int) -> Void, completion: @escaping (PickedPhotos) -> Void) {
         // No photo library is passed in, so the picker needs no permission and
         // hands back files rather than library identifiers.
@@ -28,7 +30,12 @@ final class PhotoPicker: NSObject, PHPickerViewControllerDelegate {
         picker.dismiss(animated: true)
         guard let completion else { return }
         self.completion = nil
-        if !results.isEmpty { onLoading?(results.count) }
+        // A cancelled pick must not touch the previous pick's files.
+        if results.isEmpty {
+            completion(PickedPhotos(paths: [], failed: 0))
+            return
+        }
+        onLoading?(results.count)
         PickedFiles.copy(providers: results.map(\.itemProvider), completion: completion)
     }
 }

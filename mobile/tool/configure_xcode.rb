@@ -44,6 +44,15 @@ runner.build_configurations.each do |config|
   config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'Runner/Runner.entitlements'
 end
 
+project.build_configurations.each do |config|
+  config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+end
+project.targets.select { |t| t.name == 'RunnerTests' }.each do |target|
+  target.build_configurations.each do |config|
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
+  end
+end
+
 # --- Share extension (added in Task 7) ---
 
 project.save

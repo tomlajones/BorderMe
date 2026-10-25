@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 
 final class EnginePlugin: NSObject, FlutterPlugin {
+    private static let maximumBatch = 50
     private let channel: FlutterMethodChannel
     private let picker = PhotoPicker()
     private let batch = BatchProcessor()
@@ -23,7 +24,12 @@ final class EnginePlugin: NSObject, FlutterPlugin {
         let arguments = call.arguments as? [String: Any] ?? [:]
         switch call.method {
         case "pickPhotos":
-            let limit = arguments["limit"] as? Int ?? 50
+            guard !picker.isPending else {
+                result(FlutterError(code: "busy", message: "A photo picker is already open.", details: nil))
+                return
+            }
+            // PHPicker treats 0 as unlimited, so clamp to the batch cap.
+            let limit = min(max(arguments["limit"] as? Int ?? 50, 1), Self.maximumBatch)
             picker.present(
                 limit: limit,
                 onLoading: { [channel] count in channel.invokeMethod("pickLoading", arguments: count) },
@@ -46,9 +52,12 @@ final class EnginePlugin: NSObject, FlutterPlugin {
                 }
             }
         case "process":
-            let paths = arguments["paths"] as? [String] ?? []
-            batch.start(paths: paths, settings: RenderSettings(channelValue: arguments["settings"]))
-            result(nil)
+            let paths = Array((arguments["paths"] as? [String] ?? []).prefix(Self.maximumBatch))
+            if batch.start(paths: paths, settings: RenderSettings(channelValue: arguments["settings"])) {
+                result(nil)
+            } else {
+                result(FlutterError(code: "busy", message: "Photos are already being saved.", details: nil))
+            }
         case "lastSettings":
             result(SettingsStore.load().channelValue)
         case "saveSettings":

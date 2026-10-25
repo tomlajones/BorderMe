@@ -7,6 +7,8 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
     private var sink: FlutterEventSink?
     private let lock = NSLock()
     private var memoryWarned = false
+    private var running = false
+    private let batchID = UUID().uuidString
     private var observer: NSObjectProtocol?
 
     override init() {
@@ -28,11 +30,21 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         return nil
     }
 
-    func start(paths: [String], settings: RenderSettings) {
+    /// Returns false, doing nothing, if a batch is already running.
+    func start(paths: [String], settings: RenderSettings) -> Bool {
+        lock.lock()
+        if running {
+            lock.unlock()
+            return false
+        }
+        running = true
+        lock.unlock()
         setMemoryWarned(false)
         Task.detached(priority: .userInitiated) { [weak self] in
             await self?.run(paths: paths, settings: settings)
+            self?.setRunning(false)
         }
+        return true
     }
 
     private func run(paths: [String], settings: RenderSettings) async {
@@ -65,13 +77,20 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
 
     private func thumbnail(for url: URL, settings: RenderSettings, index: Int) -> String? {
         guard let preview = try? Renderer.preview(sourceURL: url, settings: settings, maximumEdge: 300) else { return nil }
-        let destination = url.deletingLastPathComponent().appendingPathComponent("thumb-\(index).jpg")
+        // A fresh name per batch stops Flutter's image cache showing stale thumbnails.
+        let destination = url.deletingLastPathComponent().appendingPathComponent("thumb-\(batchID)-\(index).jpg")
         guard (try? preview.jpegData.write(to: destination)) != nil else { return nil }
         return destination.path
     }
 
     private func emit(_ event: [String: Any]) {
         DispatchQueue.main.async { [weak self] in self?.sink?(event) }
+    }
+
+    private func setRunning(_ value: Bool) {
+        lock.lock()
+        running = value
+        lock.unlock()
     }
 
     private func setMemoryWarned(_ value: Bool) {
