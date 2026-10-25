@@ -1,6 +1,7 @@
 import 'package:borderme/engine/engine_client.dart';
 import 'package:borderme/engine/settings.dart';
 import 'package:borderme/state/session_controller.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_engine.dart';
@@ -109,6 +110,28 @@ void main() {
     expect(denied.phase, Phase.done);
   });
 
+  test('a busy batch restores the phase the user was in', () async {
+    final engine = FakeEngine()..busyProcess = true;
+    final controller = SessionController(engine, debounce: Duration.zero);
+    await controller.choosePhotos();
+    await controller.save();
+    expect(controller.phase, Phase.editing);
+    expect(controller.saveError, isNull);
+  });
+
+  test('a stream error mid-batch ends on Done with the counts so far', () async {
+    final engine = FakeEngine(
+      events: const [PhotoSaved(index: 0, thumbnailPath: '/tmp/t0.jpg')],
+      streamError: PlatformException(code: 'x', message: 'event channel failed'),
+    );
+    final controller = SessionController(engine, debounce: Duration.zero);
+    await controller.choosePhotos();
+    await controller.save();
+    expect(controller.phase, Phase.done);
+    expect(controller.saveError, contains('1 of 2'));
+    expect(controller.thumbnails, ['/tmp/t0.jpg']);
+  });
+
   test('start again clears the session', () async {
     final controller = SessionController(FakeEngine(), debounce: Duration.zero);
     await controller.choosePhotos();
@@ -116,5 +139,6 @@ void main() {
     expect(controller.phase, Phase.start);
     expect(controller.photos, isEmpty);
     expect(controller.previews, isEmpty);
+    expect(controller.saveError, isNull);
   });
 }

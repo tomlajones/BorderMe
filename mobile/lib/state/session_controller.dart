@@ -19,7 +19,7 @@ class SessionController extends ChangeNotifier {
     _loading = engine.pickLoading.listen((_) {
       if (phase != Phase.start) return;
       phase = Phase.loading;
-      notifyListeners();
+      _notify();
     });
   }
 
@@ -29,6 +29,7 @@ class SessionController extends ChangeNotifier {
   final Duration debounce;
   late final StreamSubscription<int> _loading;
   Timer? _previewTimer;
+  bool _disposed = false;
 
   Phase phase = Phase.start;
   RenderSettings settings = RenderSettings.standard;
@@ -44,12 +45,20 @@ class SessionController extends ChangeNotifier {
   final List<SkippedPhoto> skipped = [];
   bool stoppedLowMemory = false;
   bool permissionDenied = false;
+  /// Set when saving failed part way through. The Done screen shows it.
+  String? saveError;
 
   int get processed => saved + skipped.length;
 
+  /// Notifies unless the controller has been disposed. Async work can finish
+  /// after the screen has gone.
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> init() async {
     settings = await engine.lastSettings();
-    notifyListeners();
+    _notify();
   }
 
   Future<void> choosePhotos() async {
@@ -64,7 +73,7 @@ class SessionController extends ChangeNotifier {
     failedToLoad = result.failed;
     if (result.paths.isEmpty) {
       phase = Phase.start;
-      notifyListeners();
+      _notify();
       return;
     }
     photos = result.paths;
@@ -72,7 +81,7 @@ class SessionController extends ChangeNotifier {
     previews.clear();
     previewError = null;
     phase = Phase.editing;
-    notifyListeners();
+    _notify();
     unawaited(_loadPreview(0));
   }
 
@@ -86,13 +95,13 @@ class SessionController extends ChangeNotifier {
     unawaited(engine.saveSettings(next));
     _previewTimer?.cancel();
     _previewTimer = Timer(debounce, () => _loadPreview(currentIndex));
-    notifyListeners();
+    _notify();
   }
 
   void showPhoto(int index) {
     currentIndex = index;
     previewError = null;
-    notifyListeners();
+    _notify();
     if (!previews.containsKey(index)) unawaited(_loadPreview(index));
   }
 
@@ -109,7 +118,7 @@ class SessionController extends ChangeNotifier {
       if (requested != settings || index != currentIndex) return;
       previewError = "This photo couldn't be previewed. It may be skipped when you save.";
     }
-    notifyListeners();
+    _notify();
   }
 
   Future<void> save() async {
@@ -122,7 +131,8 @@ class SessionController extends ChangeNotifier {
     skipped.clear();
     stoppedLowMemory = false;
     permissionDenied = false;
-    notifyListeners();
+    saveError = null;
+    _notify();
 
     try {
       await for (final event in engine.process(photos, settings)) {
@@ -139,22 +149,30 @@ class SessionController extends ChangeNotifier {
           case PermissionDenied():
             permissionDenied = true;
         }
-        notifyListeners();
+        _notify();
       }
     } on PlatformException catch (e) {
       // A batch is already running. Go back to where the user was.
-      if (e.code != 'busy') rethrow;
-      phase = previousPhase;
-      notifyListeners();
-      return;
+      if (e.code == 'busy') {
+        phase = previousPhase;
+        _notify();
+        return;
+      }
+      saveError = _failedMessage();
+    } catch (_) {
+      // Any other failure ends the batch on Done, keeping the counts so far.
+      saveError = _failedMessage();
     }
     phase = Phase.done;
-    notifyListeners();
+    _notify();
   }
+
+  String _failedMessage() =>
+      'Something went wrong while saving. $saved of $total photos were saved.';
 
   void backToEditing() {
     phase = Phase.editing;
-    notifyListeners();
+    _notify();
   }
 
   void startAgain() {
@@ -162,10 +180,11 @@ class SessionController extends ChangeNotifier {
     photos = const [];
     previews.clear();
     previewError = null;
+    saveError = null;
     currentIndex = 0;
     failedToLoad = 0;
     phase = Phase.start;
-    notifyListeners();
+    _notify();
   }
 
   Future<void> openPhotos() => engine.openPhotos();
@@ -173,6 +192,7 @@ class SessionController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _previewTimer?.cancel();
     _loading.cancel();
     super.dispose();

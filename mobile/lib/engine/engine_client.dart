@@ -154,6 +154,11 @@ class MethodChannelEngine implements EngineClient {
             }
           },
           onError: controller.addError,
+          // If native ends the stream without a terminal event, close it so
+          // save() can't hang.
+          onDone: () {
+            if (!controller.isClosed) controller.close();
+          },
         );
         // A refused start (e.g. 'busy') arrives here, so it reaches the caller
         // instead of being lost as an unhandled future error.

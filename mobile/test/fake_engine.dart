@@ -15,6 +15,8 @@ class FakeEngine implements EngineClient {
     List<BatchEvent>? events,
     this.failPreview = false,
     this.busyPick = false,
+    this.busyProcess = false,
+    this.streamError,
     this.stored = RenderSettings.standard,
   }) : events = events ??
             const [
@@ -27,6 +29,9 @@ class FakeEngine implements EngineClient {
   List<BatchEvent> events;
   bool failPreview;
   bool busyPick;
+  bool busyProcess;
+  /// When set, process() emits the events and then this error.
+  Object? streamError;
   RenderSettings stored;
 
   final previewRequests = <(String, RenderSettings)>[];
@@ -59,7 +64,15 @@ class FakeEngine implements EngineClient {
   Stream<BatchEvent> process(List<String> paths, RenderSettings settings) {
     processedPaths = paths;
     processedSettings = settings;
-    return Stream.fromIterable(events);
+    if (busyProcess) {
+      return Stream<BatchEvent>.error(PlatformException(code: 'busy', message: 'a batch is already running'));
+    }
+    if (streamError == null) return Stream.fromIterable(events);
+    final controller = StreamController<BatchEvent>();
+    events.forEach(controller.add);
+    controller.addError(streamError!);
+    controller.close();
+    return controller.stream;
   }
 
   @override
