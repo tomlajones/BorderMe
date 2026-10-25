@@ -48,13 +48,15 @@ Two layers, with a narrow boundary between them.
 - `Renderer`: decodes, draws onto the border colour, and encodes JPEG with preserved metadata.
 - `LibraryWriter`: saves the result to Photos as a new asset.
 
-**Bridge.** A Flutter `MethodChannel` named `borderme/engine` with three calls:
+**Bridge.** A Flutter `MethodChannel` named `borderme/engine` with these calls:
 
-- `preview(assetId, settings, maxEdge) -> PNG bytes`: a small render (about 1200 px) for the live preview.
-- `process(assetIds, settings) -> stream of progress events` through an `EventChannel`: per-photo `saved`, `skipped(reason)` or `stopped(lowMemory)`.
+- `pickPhotos(limit) -> {paths, failed}`: presents the system photo picker with no library access. Picked originals are copied to a temporary folder. Native calls `pickLoading(count)` while the copies are being made.
+- `preview(path, settings, maxEdge) -> JPEG bytes`: a small render (about 1200 px) for the live preview.
+- `process(paths, settings)`: progress events (`saved`, `skipped`, `stopped`, `finished`, `denied`) on the `borderme/engine/progress` EventChannel.
 - `lastSettings() / saveSettings(settings)`: settings shared with the Share extension through an App Group `UserDefaults`.
+- `openSettings() / openPhotos()`.
 
-Photos are passed as Photos asset identifiers, not bytes, so large images never cross the bridge.
+Photos cross the bridge as temporary file paths, never as library identifiers. Reading a library asset by identifier would need full photo-library read access, and BorderMe only asks to add photos.
 
 **Share extension.** Native Swift and SwiftUI, because Flutter cannot run inside an app extension. It links the same `BorderEngine` sources, shows a compact version of the three controls and a small preview, starts from the last-used settings, and saves on one tap.
 
@@ -122,7 +124,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 
 - Each photo is processed independently. A failure is recorded as `skipped` with a short reason, and the batch continues.
 - Reasons include: not an image, animated or multi-frame, could not download from iCloud, could not render, could not save.
-- iCloud-only originals are fetched with network access allowed. Their thumbnails show a spinner until they arrive.
+- iCloud-only originals are downloaded by the picker before the edit screen opens, behind a single 'Loading photos…' screen. Photos that fail to load are counted on the start screen.
 - If iOS warns about memory during a batch, the current photo finishes and the batch then stops with a "saved N of M" message.
 - If Photos permission is refused, the app explains why it is needed and links to Settings.
 
