@@ -40,7 +40,7 @@
   - Light grey (0.90, 0.90, 0.90), which is `0xFFE6E6E6`.
   - Black (0, 0, 0).
 - Ratios: 4:5, 3:4, 191:100, 1:1. Original keeps the photo's own shape.
-- Limits: ratio canvases are at least 1080 px wide; long edge capped near 8192 px in the app and near 4096 px in the Share extension; only downscaling, never upscaling.
+- Limits: ratio canvases are at least 1080 px wide; long edge capped near 8192 px in the app and near 3072 px in the Share extension; only downscaling, never upscaling.
 - Output: JPEG quality 0.92. Instagram presets and Square convert to sRGB; Original keeps the source RGB profile. TIFF, EXIF, EXIF Aux and IPTC are kept; GPS is dropped.
 - Batches are capped at 50 photos. Preview re-renders are debounced by 300 ms. In-app previews are 1200 px on the long edge.
 - Defaults: Medium border, White, Instagram Portrait 4:5.
@@ -187,7 +187,7 @@ git commit -m "Scaffold the BorderMe iPhone app with Flutter"
   - `BorderColour` (`.white/.offWhite/.lightGrey/.black`, `rgb: (red: Double, green: Double, blue: Double)`, `label`).
   - `SizePreset` (`.instagramPortrait/.instagramTall/.instagramLandscape/.square/.original`, `ratio: (width: Int, height: Int)?`, `convertsToSRGB: Bool`, `shortLabel`). All three enums are `String`-raw-valued with the wire values, and are `CaseIterable` and `Codable`.
   - `RenderSettings` (`border`, `colour`, `size`; `static let standard`; `init(channelValue: Any?)`; `channelValue: [String: String]`).
-  - `EngineLimits.appMaximumEdge = 8192`, `EngineLimits.extensionMaximumEdge = 4096`, `EngineLimits.minimumRatioCanvasWidth = 1080`.
+  - `EngineLimits.appMaximumEdge = 8192`, `EngineLimits.extensionMaximumEdge = 3072`, `EngineLimits.minimumRatioCanvasWidth = 1080`.
   - `RenderPlan` (`canvasWidth`, `canvasHeight`, `imageWidth`, `imageHeight`, `imageOriginX`, `imageOriginY`).
   - `RenderPlanner.plan(sourceWidth:sourceHeight:border:preset:maximumEdge:) -> RenderPlan`.
 
@@ -465,7 +465,7 @@ public enum EngineLimits {
     /// for a very large photo to a few hundred megabytes.
     public static let appMaximumEdge = 8_192
     /// Share extensions get roughly 120 MB of memory, so they render smaller.
-    public static let extensionMaximumEdge = 4_096
+    public static let extensionMaximumEdge = 3_072
     /// Instagram displays posts 1080 px wide, so a narrower canvas would only
     /// be upscaled by Instagram itself.
     public static let minimumRatioCanvasWidth = 1_080
@@ -3299,7 +3299,7 @@ Expected: one 4800 x 6400 and one 6144 x 8192 file (3:4, Medium border), matchin
 1. Open the Photos app in the simulator, select the landscape test photo, tap **Share**, then **BorderMe**. If BorderMe isn't listed, tap **Edit Actions** and enable it.
 2. Confirm the sheet opens with **Black** and **3:4** already selected; this proves the App Group settings work.
 3. Tap **Save 1 photo** and then **Done**.
-4. Re-run the Step 3 `find` command. Expected: a new 3:4 file with a long edge of 4096–4104 px.
+4. Re-run the Step 3 `find` command. Expected: a new 3:4 file with a long edge of 3072–3080 px.
 
 If the sheet opens with White/4:5 instead, the App Group isn't shared in this simulator build. Note it for the device test after enrollment rather than changing code: App Groups only fully apply once the app is signed with a team.
 

@@ -87,7 +87,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 - The canvas is `ratio.width x ratio.height` multiplied by a whole number, so ratios are exact.
 - The canvas is the smallest that fits the photo plus its border on all sides. The spare axis gets extra border.
 - Photos are never cropped and never upscaled. A canvas is at least 1080 px wide.
-- The long-edge cap is about 8192 px in the app and about 4096 px in the Share extension, because of the extension's roughly 120 MB memory limit. Only photos over the cap are scaled, and only down.
+- The long-edge cap is about 8192 px in the app and about 3072 px in the Share extension, because of the extension's roughly 120 MB memory limit. Only photos over the cap are scaled, and only down.
 - Borders are split evenly: one canvas step up fixes parity, otherwise the image shrinks by one pixel.
 - Instagram presets and Square convert to sRGB. Original keeps the source's RGB profile.
 - JPEG quality is 0.92.

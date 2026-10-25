@@ -12,12 +12,18 @@ struct PickedPhotos {
 enum PickedFiles {
     private static let prefix = "Picked-"
 
-    static func freshDirectory() -> URL {
+    /// Deletes every copied-photo folder, for when a process is finished with them.
+    static func removeAll() {
         let temporary = FileManager.default.temporaryDirectory
         let old = (try? FileManager.default.contentsOfDirectory(at: temporary, includingPropertiesForKeys: nil)) ?? []
         for url in old where url.lastPathComponent.hasPrefix(prefix) {
             try? FileManager.default.removeItem(at: url)
         }
+    }
+
+    static func freshDirectory() -> URL {
+        let temporary = FileManager.default.temporaryDirectory
+        removeAll()
         let directory = temporary.appendingPathComponent(prefix + UUID().uuidString)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory

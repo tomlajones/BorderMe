@@ -3,6 +3,7 @@ import SwiftUI
 struct ShareView: View {
     @ObservedObject var model: ShareModel
     let onDone: () -> Void
+    let onCancel: () -> Void
 
     var body: some View {
         NavigationView {
@@ -11,11 +12,18 @@ struct ShareView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel", action: onDone)
+                        if !isSaving {
+                            Button("Cancel", action: onCancel)
+                        }
                     }
                 }
         }
         .navigationViewStyle(.stack)
+    }
+
+    private var isSaving: Bool {
+        if case .saving = model.stage { return true }
+        return false
     }
 
     @ViewBuilder private var content: some View {
@@ -25,7 +33,7 @@ struct ShareView: View {
         case .failed(let message):
             VStack(spacing: 16) {
                 Text(message).multilineTextAlignment(.center)
-                Button("Close", action: onDone)
+                Button("Close", action: onCancel)
             }
             .padding()
         case .ready:

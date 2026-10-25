@@ -20,6 +20,7 @@ final class ShareModel: ObservableObject {
     @Published private(set) var stage: Stage = .loading
     @Published private(set) var preview: UIImage?
     private(set) var paths: [String] = []
+    private var unopened = 0
     private let renderQueue = DispatchQueue(label: "borderme.share.render", qos: .userInitiated)
 
     init() {
@@ -30,6 +31,7 @@ final class ShareModel: ObservableObject {
         PickedFiles.copy(providers: providers) { [weak self] picked in
             guard let self else { return }
             self.paths = picked.paths
+            self.unopened = picked.failed
             if picked.paths.isEmpty {
                 self.stage = .failed("BorderMe couldn't open these photos.")
             } else {
@@ -79,6 +81,9 @@ final class ShareModel: ObservableObject {
                     skipped.append("Photo \(index + 1): \(FailureReason.describe(error))")
                 }
                 self?.setStage(.saving(done: index + 1, total: paths.count))
+            }
+            if let unopened = self?.unopened, unopened > 0 {
+                skipped.append(unopened == 1 ? "1 photo couldn't be opened." : "\(unopened) photos couldn't be opened.")
             }
             self?.setStage(.finished(saved: saved, skipped: skipped))
         }

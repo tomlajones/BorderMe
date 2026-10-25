@@ -76,7 +76,7 @@ final class RenderPlannerTests: XCTestCase {
         }
     }
 
-    func testExtensionCapKeepsCanvasNearFourK() {
+    func testExtensionCapKeepsCanvasNearThreeK() {
         for preset in SizePreset.allCases {
             let result = plan(8064, 6048, preset, cap: EngineLimits.extensionMaximumEdge)
             let longEdge = max(result.canvasWidth, result.canvasHeight)
