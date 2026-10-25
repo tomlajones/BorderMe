@@ -113,7 +113,9 @@ public enum EngineLimits {
     /// Far beyond anything Instagram displays, and it keeps the render buffer
     /// for a very large photo to a few hundred megabytes.
     public static let appMaximumEdge = 8_192
-    /// Share extensions get roughly 120 MB of memory, so they render smaller. Measured on the Mac, a 4096 cap peaked near 240 MB; 3072 peaks near 90-125 MB.
+    /// Share extensions get roughly 120 MB of memory, so they render smaller.
+    /// Measured on the Mac with the block-by-block decode, a render at this cap
+    /// peaks near 40-60 MB for 12-48 MP JPEG and HEIC photos.
     public static let extensionMaximumEdge = 3_072
     /// Instagram displays posts 1080 px wide, so a narrower canvas would only
     /// be upscaled by Instagram itself.

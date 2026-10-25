@@ -147,6 +147,80 @@ final class RendererTests: XCTestCase {
         XCTAssertNil(try properties(of: preview.jpegData)[kCGImagePropertyGPSDictionary])
     }
 
+    /// Each EXIF orientation must come out the way ImageIO itself turns the
+    /// photo upright, for both of the formats the renderer decodes in blocks.
+    func testEveryOrientationComesOutUpright() throws {
+        let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: 600, height: 400, bitsPerComponent: 8, bytesPerRow: 0,
+            space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        ))
+        // A different colour in each quadrant, so any turn or mirror shows.
+        let quadrants: [(CGRect, [CGFloat])] = [
+            (CGRect(x: 0, y: 200, width: 300, height: 200), [0.9, 0.1, 0.1, 1]),
+            (CGRect(x: 300, y: 200, width: 300, height: 200), [0.1, 0.8, 0.1, 1]),
+            (CGRect(x: 0, y: 0, width: 300, height: 200), [0.1, 0.1, 0.9, 1]),
+            (CGRect(x: 300, y: 0, width: 300, height: 200), [0.9, 0.9, 0.1, 1])
+        ]
+        for (rect, components) in quadrants {
+            context.setFillColor(try XCTUnwrap(CGColor(colorSpace: space, components: components)))
+            context.fill(rect)
+        }
+        let stored = try XCTUnwrap(context.makeImage())
+
+        for type in [UTType.jpeg, UTType.heic] {
+            for orientation in 1...8 {
+                let url = directory.appendingPathComponent("o\(orientation).\(type.preferredFilenameExtension ?? "img")")
+                guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil) else {
+                    continue // No HEIF encoder on this machine.
+                }
+                CGImageDestinationAddImage(destination, stored, [kCGImagePropertyOrientation: orientation] as CFDictionary)
+                XCTAssertTrue(CGImageDestinationFinalize(destination))
+
+                let source = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+                let upright = try XCTUnwrap(CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 600
+                ] as CFDictionary))
+                let expected = try pixels(of: try jpegData(upright))
+
+                let settings = RenderSettings(border: .medium, colour: .white, size: .original)
+                let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: EngineLimits.appMaximumEdge)
+                let actual = try pixels(of: rendered.jpegData)
+                let plan = RenderPlanner.plan(
+                    sourceWidth: upright.width, sourceHeight: upright.height,
+                    border: .medium, preset: .original, maximumEdge: EngineLimits.appMaximumEdge
+                )
+                XCTAssertEqual(actual.width, plan.canvasWidth, "\(type) \(orientation)")
+                XCTAssertEqual(actual.height, plan.canvasHeight, "\(type) \(orientation)")
+                // The plan's origin counts up from the bottom; pixel rows count down.
+                let photoTop = plan.canvasHeight - plan.imageOriginY - plan.imageHeight
+
+                for (fx, fy) in [(0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.75, 0.75)] {
+                    let e = (Int(fy * Double(expected.height)) * expected.width + Int(fx * Double(expected.width))) * 4
+                    let ax = plan.imageOriginX + Int(fx * Double(plan.imageWidth))
+                    let ay = photoTop + Int(fy * Double(plan.imageHeight))
+                    let a = (ay * actual.width + ax) * 4
+                    for channel in 0..<3 {
+                        XCTAssertEqual(
+                            Int(actual.bytes[a + channel]), Int(expected.bytes[e + channel]), accuracy: 24,
+                            "\(type) orientation \(orientation) at (\(fx), \(fy))"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func jpegData(_ image: CGImage) throws -> Data {
+        let data = NSMutableData()
+        let destination = try XCTUnwrap(CGImageDestinationCreateWithData(data as CFMutableData, UTType.jpeg.identifier as CFString, 1, nil))
+        CGImageDestinationAddImage(destination, image, nil)
+        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        return data as Data
+    }
+
     func testRejectsFilesThatAreNotImages() throws {
         let url = directory.appendingPathComponent("notes.jpg")
         try Data("not a photo".utf8).write(to: url)
