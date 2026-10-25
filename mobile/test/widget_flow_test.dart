@@ -172,4 +172,21 @@ void main() {
     await pumpApp(tester);
     expect(find.text('Pick up to 50 photos.'), findsOneWidget);
   });
+
+  testWidgets('a failed re-render shows the error and keeps the old image dimmed', (tester) async {
+    final engine = await pumpApp(tester);
+    await tester.tap(find.byKey(const Key('choose')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining("couldn't be previewed"), findsNothing);
+
+    engine.failPreview = true;
+    await tester.tap(find.byKey(const Key('colour-black')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining("couldn't be previewed"), findsOneWidget);
+    final opacity = tester.widget<Opacity>(
+      find.ancestor(of: find.byType(Image), matching: find.byType(Opacity)).first,
+    );
+    expect(opacity.opacity, lessThan(1));
+  });
 }

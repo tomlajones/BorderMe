@@ -78,10 +78,7 @@ class _EditScreenState extends State<EditScreen> {
               itemBuilder: (context, i) => _Preview(
                 bytes: c.previews[i],
                 error: i == c.currentIndex ? c.previewError : null,
-                refreshing:
-                    c.previews[i] != null &&
-                    !c.isPreviewCurrent(i) &&
-                    c.previewError == null,
+                stale: c.previews[i] != null && !c.isPreviewCurrent(i),
                 label: 'Preview of photo ${i + 1} of $count',
               ),
             );
@@ -140,50 +137,64 @@ class _Preview extends StatelessWidget {
   const _Preview({
     required this.bytes,
     required this.error,
-    required this.refreshing,
+    required this.stale,
     required this.label,
   });
 
   final Uint8List? bytes;
   final String? error;
-  final bool refreshing;
+
+  /// The image shown was rendered with older settings.
+  final bool stale;
   final String label;
 
   @override
   Widget build(BuildContext context) {
     final image = bytes;
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Center(
-        child: image != null
-            ? Semantics(
-                image: true,
-                label: label,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Opacity(
-                      opacity: refreshing ? 0.5 : 1,
-                      child: DecoratedBox(
-                        decoration: const BoxDecoration(
-                          boxShadow: [
-                            BoxShadow(blurRadius: 12, color: Color(0x33000000)),
-                          ],
-                        ),
-                        child: Image.memory(
-                          image,
-                          fit: BoxFit.contain,
-                          gaplessPlayback: true,
-                        ),
-                      ),
+    final Widget content;
+    if (image != null) {
+      content = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Opacity(
+                  opacity: stale ? 0.5 : 1,
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(blurRadius: 12, color: Color(0x33000000)),
+                      ],
                     ),
-                    if (refreshing) const CircularProgressIndicator(),
-                  ],
+                    child: Image.memory(
+                      image,
+                      fit: BoxFit.contain,
+                      gaplessPlayback: true,
+                    ),
+                  ),
                 ),
-              )
-            : error != null
-            ? Text(error!, textAlign: TextAlign.center)
-            : const CircularProgressIndicator(),
+                if (stale && error == null) const CircularProgressIndicator(),
+              ],
+            ),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 8),
+            Text(error!, textAlign: TextAlign.center),
+          ],
+        ],
+      );
+    } else if (error != null) {
+      content = Text(error!, textAlign: TextAlign.center);
+    } else {
+      content = const CircularProgressIndicator();
+    }
+    return Semantics(
+      label: label,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(child: content),
       ),
     );
   }
