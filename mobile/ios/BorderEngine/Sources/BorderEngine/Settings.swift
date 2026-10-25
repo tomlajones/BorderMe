@@ -115,7 +115,9 @@ public enum EngineLimits {
     public static let appMaximumEdge = 8_192
     /// Share extensions get roughly 120 MB of memory, so they render smaller.
     /// Measured on the Mac with the block-by-block decode, a render at this cap
-    /// peaks near 40-60 MB for 12-48 MP JPEG and HEIC photos.
+    /// peaks near 40-60 MB for 12-48 MP HEIC and baseline JPEG photos and
+    /// 60-70 MB for progressive JPEGs. Formats decoded whole (PNG, TIFF and
+    /// the like) still peak near 90-125 MB for photos of that size.
     public static let extensionMaximumEdge = 3_072
     /// Instagram displays posts 1080 px wide, so a narrower canvas would only
     /// be upscaled by Instagram itself.

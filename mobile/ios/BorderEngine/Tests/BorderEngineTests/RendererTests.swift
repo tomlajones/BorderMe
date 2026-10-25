@@ -213,10 +213,105 @@ final class RendererTests: XCTestCase {
         }
     }
 
+    /// The block-by-block draw must match a single-pass downscale: no seams,
+    /// no misplaced blocks. 2400x1800 at a 1600 cap uses the compact blocks
+    /// (three HEIF columns, eight rows) at a non-integer scale.
+    func testBlocksJoinWithoutSeams() throws {
+        let width = 2400, height = 1800
+        let space = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let context = try XCTUnwrap(CGContext(
+            data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+            space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+        ))
+        // Smooth, but changing fast enough that a block drawn a few pixels out
+        // of place changes what lands there.
+        let across = try XCTUnwrap(CGGradient(
+            colorsSpace: space,
+            colors: (0...16).map { CGColor(colorSpace: space, components: $0 % 2 == 0 ? [0.9, 0.2, 0.1, 1] : [0.1, 0.3, 0.9, 1])! } as CFArray,
+            locations: (0...16).map { CGFloat($0) / 16 }
+        ))
+        context.drawLinearGradient(across, start: .zero, end: CGPoint(x: width, y: 0), options: [])
+        let down = try XCTUnwrap(CGGradient(
+            colorsSpace: space,
+            colors: (0...18).map { CGColor(colorSpace: space, components: [0.2, 0.9, 0.3, $0 % 2 == 0 ? 0 : 0.85])! } as CFArray,
+            locations: (0...18).map { CGFloat($0) / 18 }
+        ))
+        context.drawLinearGradient(down, start: .zero, end: CGPoint(x: 0, y: height), options: [])
+        let photo = try XCTUnwrap(context.makeImage())
+
+        for type in [UTType.jpeg, UTType.heic] {
+            let url = directory.appendingPathComponent("gradient.\(type.preferredFilenameExtension ?? "img")")
+            guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type.identifier as CFString, 1, nil) else {
+                continue // No HEIF encoder on this machine.
+            }
+            CGImageDestinationAddImage(destination, photo, [kCGImageDestinationLossyCompressionQuality: 0.95] as CFDictionary)
+            XCTAssertTrue(CGImageDestinationFinalize(destination))
+
+            let settings = RenderSettings(border: .medium, colour: .white, size: .original)
+            let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: 1600)
+            let actual = try pixels(of: rendered.jpegData)
+            let plan = RenderPlanner.plan(sourceWidth: width, sourceHeight: height, border: .medium, preset: .original, maximumEdge: 1600)
+            XCTAssertEqual(actual.width, plan.canvasWidth)
+
+            // The reference: the whole photo decoded and drawn in one pass.
+            let source = try XCTUnwrap(CGImageSourceCreateWithURL(url as CFURL, nil))
+            let whole = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))
+            let single = try XCTUnwrap(CGContext(
+                data: nil, width: plan.imageWidth, height: plan.imageHeight, bitsPerComponent: 8, bytesPerRow: 0,
+                space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+            ))
+            single.interpolationQuality = .high
+            single.draw(whole, in: CGRect(x: 0, y: 0, width: plan.imageWidth, height: plan.imageHeight))
+            let expected = try pixels(of: try jpegData(try XCTUnwrap(single.makeImage())))
+
+            // Compare the photo, less a 2 px rim where it meets the border. Rows
+            // and columns are averaged over 100 px stretches, so one block out
+            // of place stands out however small it is.
+            let photoTop = plan.canvasHeight - plan.imageOriginY - plan.imageHeight
+            let columns = plan.imageWidth - 4, rows = plan.imageHeight - 4
+            let stretch = 100
+            var rowTotals = [Int](repeating: 0, count: rows * (columns / stretch + 1))
+            var columnTotals = [Int](repeating: 0, count: columns * (rows / stretch + 1))
+            var total = 0
+            actual.bytes.withUnsafeBufferPointer { actualBytes in
+                expected.bytes.withUnsafeBufferPointer { expectedBytes in
+                    for y in 0..<rows {
+                        for x in 0..<columns {
+                            let a = ((photoTop + y + 2) * actual.width + plan.imageOriginX + x + 2) * 4
+                            let e = ((y + 2) * expected.width + x + 2) * 4
+                            let difference = abs(Int(actualBytes[a]) - Int(expectedBytes[e]))
+                                + abs(Int(actualBytes[a + 1]) - Int(expectedBytes[e + 1]))
+                                + abs(Int(actualBytes[a + 2]) - Int(expectedBytes[e + 2]))
+                            rowTotals[y * (columns / stretch + 1) + x / stretch] += difference
+                            columnTotals[x * (rows / stretch + 1) + y / stretch] += difference
+                            total += difference
+                        }
+                    }
+                }
+            }
+            func worst(_ totals: [Int], lines: Int, length: Int) -> (line: Int, mean: Double) {
+                let perLine = length / stretch + 1
+                var result = (line: 0, mean: 0.0)
+                for (index, sum) in totals.enumerated() {
+                    let count = min(stretch, length - (index % perLine) * stretch)
+                    guard count >= stretch / 2 else { continue }
+                    let mean = Double(sum) / Double(count * 3)
+                    if mean > result.mean { result = (index / perLine, mean) }
+                }
+                return result
+            }
+            XCTAssertLessThan(Double(total) / Double(rows * columns * 3), 1.5, "\(type) overall")
+            let worstRow = worst(rowTotals, lines: rows, length: columns)
+            let worstColumn = worst(columnTotals, lines: columns, length: rows)
+            XCTAssertLessThan(worstRow.mean, 3, "\(type) row \(worstRow.line)")
+            XCTAssertLessThan(worstColumn.mean, 3, "\(type) column \(worstColumn.line)")
+        }
+    }
+
     private func jpegData(_ image: CGImage) throws -> Data {
         let data = NSMutableData()
         let destination = try XCTUnwrap(CGImageDestinationCreateWithData(data as CFMutableData, UTType.jpeg.identifier as CFString, 1, nil))
-        CGImageDestinationAddImage(destination, image, nil)
+        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: Renderer.jpegQuality] as CFDictionary)
         XCTAssertTrue(CGImageDestinationFinalize(destination))
         return data as Data
     }

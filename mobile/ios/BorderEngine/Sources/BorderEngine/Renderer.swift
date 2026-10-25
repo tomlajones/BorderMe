@@ -121,8 +121,8 @@ public enum Renderer {
         let block: (CGRect) -> CGImage?
     }
 
-    /// `compact` trades speed for memory: smaller HEIF blocks mean more
-    /// decoder start-ups but a lower peak.
+    /// `compact` trades speed for memory: smaller HEIF blocks and progressive
+    /// JPEG bands mean more decoding work but a lower peak.
     private static func blockSource(sourceURL: URL, source: CGImageSource, minimumLongEdge: Int, compact: Bool) throws -> BlockSource {
         let type = CGImageSourceGetType(source) as String?
         let decodesInBlocks = type == UTType.jpeg.identifier || type == UTType.heic.identifier || type == UTType.heif.identifier
@@ -148,9 +148,13 @@ public enum Renderer {
 
         if type == UTType.jpeg.identifier {
             // A JPEG decodes top to bottom, so it is drawn in full-width bands.
+            // A progressive JPEG is decoded again from the start for every band,
+            // so it gets fewer, taller bands: as tall as the Share extension can
+            // afford, or a single band in the app.
+            let bandHeight = isProgressive(source) ? (compact ? 512 : image.height) : 256
             return BlockSource(
                 width: image.width, height: image.height, colorSpace: image.colorSpace, orientation: orientation,
-                blockWidth: image.width, blockHeight: 256, block: { image.cropping(to: $0) }
+                blockWidth: image.width, blockHeight: bandHeight, block: { image.cropping(to: $0) }
             )
         }
         // A HEIF image source holds on to what it has decoded until it is
@@ -167,6 +171,12 @@ public enum Renderer {
                 return blockImage.cropping(to: rect)
             }
         )
+    }
+
+    private static func isProgressive(_ source: CGImageSource) -> Bool {
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let jfif = properties?[kCGImagePropertyJFIFDictionary] as? [CFString: Any]
+        return (jfif?[kCGImagePropertyJFIFIsProgressive] as? NSNumber)?.boolValue ?? false
     }
 
     private static func decodedImage(from source: CGImageSource, maximumPixelSize: Int) throws -> CGImage {
