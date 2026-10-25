@@ -39,6 +39,10 @@ BorderMe isn't signed with an Apple Developer certificate, because those cost mo
 
 New files are saved beside the originals, named after the source with the border and size on the end. Nothing is overwritten; a second run adds a number.
 
+## iPhone
+
+There's an iPhone version in `mobile/` too, built with Flutter, with the same borders and sizes, a live preview, four border colours, and a Share-sheet action from the Photos app. It isn't on the App Store yet.
+
 ## Presets
 
 - Border: Small 2%, Medium 5%, Large 8%, measured against the photo's shorter edge.
