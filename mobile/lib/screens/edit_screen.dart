@@ -61,6 +61,23 @@ class _EditScreenState extends State<EditScreen> {
           onPressed: _confirmDiscard,
         ),
         title: Text(count == 1 ? '1 photo' : '${c.currentIndex + 1} of $count'),
+        bottom: c.failedToLoad > 0
+            ? PreferredSize(
+                preferredSize: const Size.fromHeight(28),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    c.failedToLoad == 1
+                        ? "1 photo couldn't be loaded."
+                        : "${c.failedToLoad} photos couldn't be loaded.",
+                    key: const Key('failed-to-load'),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                  ),
+                ),
+              )
+            : null,
       ),
       body: SafeArea(
         child: LayoutBuilder(

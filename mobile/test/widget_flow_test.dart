@@ -189,4 +189,43 @@ void main() {
     );
     expect(opacity.opacity, lessThan(1));
   });
+
+  testWidgets('photos that failed to load are mentioned on the edit screen', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      engine: FakeEngine(
+        pickResult: const PickResult(paths: ['/tmp/a.jpg'], failed: 2),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('choose')));
+    await tester.pumpAndSettle();
+    expect(find.text("2 photos couldn't be loaded."), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text("2 photos couldn't be loaded."), findsNothing);
+  });
+
+  testWidgets('settings are re-read when the app resumes on the start screen', (
+    tester,
+  ) async {
+    final engine = await pumpApp(tester);
+    await tester.pump();
+    engine.stored = const RenderSettings(
+      border: BorderSize.large,
+      colour: BorderColour.black,
+      size: SizePreset.square,
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('choose')));
+    await tester.pumpAndSettle();
+    expect(engine.previewRequests.last.$2, engine.stored);
+  });
 }

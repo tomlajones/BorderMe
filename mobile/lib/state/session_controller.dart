@@ -137,7 +137,20 @@ class SessionController extends ChangeNotifier {
     _notify();
   }
 
+  /// Re-reads the stored settings, for when the app returns from the
+  /// background. The Share extension may have changed them. Only done on the
+  /// Start screen so it never disturbs photos being edited.
+  Future<void> refreshSettings() async {
+    if (phase != Phase.start) return;
+    final latest = await engine.lastSettings();
+    if (_disposed || phase != Phase.start || latest == settings) return;
+    settings = latest;
+    _notify();
+  }
+
   Future<void> save() async {
+    // A second call would take over the event stream and leave Saving hanging.
+    if (phase == Phase.saving) return;
     _previewTimer?.cancel();
     final previousPhase = phase;
     phase = Phase.saving;

@@ -210,4 +210,37 @@ void main() {
       expect(controller.isPreviewCurrent(0), isTrue);
     },
   );
+
+  test('refreshSettings picks up changes on Start but not while editing', () async {
+    final engine = FakeEngine();
+    final controller = SessionController(engine, debounce: Duration.zero);
+    await controller.init();
+    const changed = RenderSettings(
+      border: BorderSize.large,
+      colour: BorderColour.black,
+      size: SizePreset.square,
+    );
+    engine.stored = changed;
+    await controller.refreshSettings();
+    expect(controller.settings, changed);
+
+    await controller.choosePhotos();
+    engine.stored = RenderSettings.standard;
+    await controller.refreshSettings();
+    expect(controller.settings, changed);
+  });
+
+  test('a second save while saving is ignored', () async {
+    final engine = FakeEngine();
+    final controller = SessionController(engine, debounce: Duration.zero);
+    await controller.choosePhotos();
+    final first = controller.save();
+    expect(controller.phase, Phase.saving);
+    engine.processedPaths = null;
+    await controller.save();
+    expect(engine.processedPaths, isNull);
+    await first;
+    expect(controller.phase, Phase.done);
+    expect(controller.saved, 2);
+  });
 }
