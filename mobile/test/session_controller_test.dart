@@ -125,7 +125,7 @@ void main() {
     expect(controller.saved, 1);
     expect(controller.thumbnails, ['/tmp/t0.jpg']);
     expect(controller.skipped.single.reason, 'not a readable image file');
-    expect(controller.stoppedLowMemory, isFalse);
+    expect(controller.stopReason, isNull);
   });
 
   test('low memory and refused permission are reported', () async {
@@ -133,15 +133,23 @@ void main() {
       FakeEngine(
         events: const [
           PhotoSaved(index: 0, thumbnailPath: ''),
-          BatchStopped(saved: 1, total: 2),
+          BatchStopped(saved: 1, total: 2, reason: StopReason.lowMemory),
         ],
       ),
       debounce: Duration.zero,
     );
     await lowMemory.choosePhotos();
     await lowMemory.save();
-    expect(lowMemory.stoppedLowMemory, isTrue);
+    expect(lowMemory.stopReason, StopReason.lowMemory);
     expect(lowMemory.thumbnails, isEmpty);
+
+    final outOfTime = SessionController(
+      FakeEngine(events: const [BatchStopped(saved: 0, total: 2, reason: StopReason.outOfTime)]),
+      debounce: Duration.zero,
+    );
+    await outOfTime.choosePhotos();
+    await outOfTime.save();
+    expect(outOfTime.stopReason, StopReason.outOfTime);
 
     final denied = SessionController(
       FakeEngine(events: const [PermissionDenied()]),

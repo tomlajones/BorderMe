@@ -52,7 +52,8 @@ class SessionController extends ChangeNotifier {
   int total = 0;
   final List<String> thumbnails = [];
   final List<SkippedPhoto> skipped = [];
-  bool stoppedLowMemory = false;
+  /// Set when the batch stopped before the last photo.
+  StopReason? stopReason;
   bool permissionDenied = false;
 
   /// Set when saving failed part way through. The Done screen shows it.
@@ -158,7 +159,7 @@ class SessionController extends ChangeNotifier {
     total = photos.length;
     thumbnails.clear();
     skipped.clear();
-    stoppedLowMemory = false;
+    stopReason = null;
     permissionDenied = false;
     saveError = null;
     _notify();
@@ -171,8 +172,8 @@ class SessionController extends ChangeNotifier {
             if (thumbnailPath.isNotEmpty) thumbnails.add(thumbnailPath);
           case PhotoSkipped(:final index, :final reason):
             skipped.add(SkippedPhoto(index, reason));
-          case BatchStopped():
-            stoppedLowMemory = true;
+          case BatchStopped(:final reason):
+            stopReason = reason;
           case BatchFinished():
             break;
           case PermissionDenied():

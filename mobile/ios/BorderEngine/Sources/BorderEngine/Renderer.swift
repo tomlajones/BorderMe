@@ -326,7 +326,9 @@ public enum Renderer {
             kCGImagePropertyIPTCProvinceState,
             kCGImagePropertyIPTCCountryPrimaryLocationName,
             kCGImagePropertyIPTCCountryPrimaryLocationCode,
-            kCGImagePropertyIPTCSubLocation
+            kCGImagePropertyIPTCSubLocation,
+            kCGImagePropertyIPTCContentLocationName,
+            kCGImagePropertyIPTCContentLocationCode
         ]
         var preserved: [CFString: Any] = [:]
         for key in carried {

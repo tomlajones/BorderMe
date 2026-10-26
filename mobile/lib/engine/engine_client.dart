@@ -36,16 +36,26 @@ class PhotoSkipped extends BatchEvent {
   int get hashCode => Object.hash(index, reason);
 }
 
-/// The phone ran low on memory, so the batch stopped early.
+enum StopReason {
+  /// iOS warned that memory was running low.
+  lowMemory,
+
+  /// BorderMe was in the background and iOS ran out of time to give it.
+  outOfTime,
+}
+
+/// The batch stopped early, after the photo it was on.
 class BatchStopped extends BatchEvent {
-  const BatchStopped({required this.saved, required this.total});
+  const BatchStopped({required this.saved, required this.total, required this.reason});
   final int saved;
   final int total;
+  final StopReason reason;
 
   @override
-  bool operator ==(Object other) => other is BatchStopped && other.saved == saved && other.total == total;
+  bool operator ==(Object other) =>
+      other is BatchStopped && other.saved == saved && other.total == total && other.reason == reason;
   @override
-  int get hashCode => Object.hash(saved, total);
+  int get hashCode => Object.hash(saved, total, reason);
 }
 
 class BatchFinished extends BatchEvent {
@@ -77,7 +87,11 @@ BatchEvent? parseBatchEvent(Object? raw) {
   return switch (map['type']) {
     'saved' => PhotoSaved(index: number('index'), thumbnailPath: map['thumbnail'] as String? ?? ''),
     'skipped' => PhotoSkipped(index: number('index'), reason: map['reason'] as String? ?? 'could not be processed'),
-    'stopped' => BatchStopped(saved: number('saved'), total: number('total')),
+    'stopped' => BatchStopped(
+      saved: number('saved'),
+      total: number('total'),
+      reason: map['reason'] == 'time' ? StopReason.outOfTime : StopReason.lowMemory,
+    ),
     'finished' => BatchFinished(saved: number('saved'), total: number('total')),
     'denied' => const PermissionDenied(),
     _ => null,

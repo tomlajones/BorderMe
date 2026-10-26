@@ -7,6 +7,7 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
     private var sink: FlutterEventSink?
     private let lock = NSLock()
     private var memoryWarned = false
+    private var outOfTime = false
     private var running = false
     private var observer: NSObjectProtocol?
 
@@ -39,25 +40,26 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         running = true
         lock.unlock()
         setMemoryWarned(false)
+        setOutOfTime(false)
         let batchID = UUID().uuidString
         // Asks iOS for time to finish if the phone is locked mid-batch. If the
         // time runs out, stop cleanly after the current photo and let go.
+        // Both endings run on the main thread, so `background` needs no lock.
         var background = UIBackgroundTaskIdentifier.invalid
         let endBackground = {
-            DispatchQueue.main.async {
-                guard background != .invalid else { return }
-                UIApplication.shared.endBackgroundTask(background)
-                background = .invalid
-            }
+            guard background != .invalid else { return }
+            UIApplication.shared.endBackgroundTask(background)
+            background = .invalid
         }
         background = UIApplication.shared.beginBackgroundTask(withName: "BorderMe batch") { [weak self] in
-            self?.setMemoryWarned(true)
+            // iOS ends the app if this handler returns with the task still open.
+            self?.setOutOfTime(true)
             endBackground()
         }
         Task.detached(priority: .userInitiated) { [weak self] in
             await self?.run(paths: paths, settings: settings, batchID: batchID)
             self?.setRunning(false)
-            endBackground()
+            DispatchQueue.main.async { endBackground() }
         }
         return true
     }
@@ -71,8 +73,8 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         for (index, path) in paths.enumerated() {
             // Finish the current photo, then stop, rather than risk iOS ending
             // the app partway through a save.
-            if isMemoryWarned() {
-                emit(["type": "stopped", "saved": saved, "total": paths.count])
+            if let reason = stopReason() {
+                emit(["type": "stopped", "saved": saved, "total": paths.count, "reason": reason])
                 return
             }
             let url = URL(fileURLWithPath: path)
@@ -114,9 +116,18 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
         lock.unlock()
     }
 
-    private func isMemoryWarned() -> Bool {
+    private func setOutOfTime(_ value: Bool) {
+        lock.lock()
+        outOfTime = value
+        lock.unlock()
+    }
+
+    /// Why the batch should stop before the next photo, if it should.
+    private func stopReason() -> String? {
         lock.lock()
         defer { lock.unlock() }
-        return memoryWarned
+        if outOfTime { return "time" }
+        if memoryWarned { return "memory" }
+        return nil
     }
 }

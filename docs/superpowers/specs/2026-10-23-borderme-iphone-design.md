@@ -116,7 +116,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 ## Metadata and privacy
 
 - Kept: TIFF, EXIF, EXIF Aux and IPTC (copyright, camera, lens, capture date). Stale orientation, dimension and colour-space tags are removed.
-- Removed: GPS/location, including the IPTC place names (city, province or state, country name and code, sub-location). The Mac engine is unchanged.
+- Removed: GPS/location, including the IPTC place names (city, province or state, country name and code, sub-location, content location name and code). The Mac engine is unchanged.
 - Permission: add-only Photos access (`NSPhotoLibraryAddUsageDescription`). The picker itself needs no permission.
 - No network access, accounts, analytics or third-party SDKs that collect data. The App Store privacy label is "Data Not Collected". The privacy policy is a short single page.
 

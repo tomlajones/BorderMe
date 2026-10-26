@@ -33,7 +33,10 @@ void main() {
         const PhotoSaved(index: 1, thumbnailPath: '/t.jpg'));
     expect(parseBatchEvent({'type': 'skipped', 'index': 2, 'reason': 'not a readable image file'}),
         const PhotoSkipped(index: 2, reason: 'not a readable image file'));
-    expect(parseBatchEvent({'type': 'stopped', 'saved': 3, 'total': 9}), const BatchStopped(saved: 3, total: 9));
+    expect(parseBatchEvent({'type': 'stopped', 'saved': 3, 'total': 9, 'reason': 'memory'}),
+        const BatchStopped(saved: 3, total: 9, reason: StopReason.lowMemory));
+    expect(parseBatchEvent({'type': 'stopped', 'saved': 3, 'total': 9, 'reason': 'time'}),
+        const BatchStopped(saved: 3, total: 9, reason: StopReason.outOfTime));
     expect(parseBatchEvent({'type': 'finished', 'saved': 9, 'total': 9}), const BatchFinished(saved: 9, total: 9));
     expect(parseBatchEvent({'type': 'denied'}), const PermissionDenied());
     expect(parseBatchEvent({'type': 'mystery'}), isNull);

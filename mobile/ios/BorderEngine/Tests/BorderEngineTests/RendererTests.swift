@@ -45,7 +45,9 @@ final class RendererTests: XCTestCase {
                 kCGImagePropertyIPTCProvinceState: "England",
                 kCGImagePropertyIPTCCountryPrimaryLocationName: "United Kingdom",
                 kCGImagePropertyIPTCCountryPrimaryLocationCode: "GBR",
-                kCGImagePropertyIPTCSubLocation: "Hampstead Heath"
+                kCGImagePropertyIPTCSubLocation: "Hampstead Heath",
+                kCGImagePropertyIPTCContentLocationName: "Parliament Hill",
+                kCGImagePropertyIPTCContentLocationCode: "GBR"
             ]
         ]
         CGImageDestinationAddImage(destination, image, properties as CFDictionary)
@@ -135,7 +137,8 @@ final class RendererTests: XCTestCase {
         for name in [
             kCGImagePropertyIPTCCity, kCGImagePropertyIPTCProvinceState,
             kCGImagePropertyIPTCCountryPrimaryLocationName, kCGImagePropertyIPTCCountryPrimaryLocationCode,
-            kCGImagePropertyIPTCSubLocation
+            kCGImagePropertyIPTCSubLocation, kCGImagePropertyIPTCContentLocationName,
+            kCGImagePropertyIPTCContentLocationCode
         ] {
             XCTAssertNil(iptc[name], "\(name)")
         }

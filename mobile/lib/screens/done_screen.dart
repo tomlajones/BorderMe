@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../engine/engine_client.dart';
 import '../state/session_controller.dart';
 
 class DoneScreen extends StatelessWidget {
@@ -75,12 +76,16 @@ class DoneScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(c.saveError!),
             ],
-            if (c.stoppedLowMemory) ...[
+            if (c.stopReason case final reason?) ...[
               const SizedBox(height: 8),
-              Text(
-                'Your iPhone ran low on memory, so BorderMe stopped after ${c.saved} of ${c.total}. '
-                'Try the rest in a smaller batch.',
-              ),
+              Text(switch (reason) {
+                StopReason.lowMemory =>
+                  'Your iPhone ran low on memory, so BorderMe stopped after ${c.saved} of ${c.total}. '
+                      'Try the rest in a smaller batch.',
+                StopReason.outOfTime =>
+                  'BorderMe stopped after ${c.saved} of ${c.total} because it was in the background. '
+                      'Keep BorderMe open while it saves, then try the rest again.',
+              }),
             ],
             if (c.thumbnails.isNotEmpty) ...[
               const SizedBox(height: 16),
