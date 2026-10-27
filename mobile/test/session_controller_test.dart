@@ -13,7 +13,7 @@ void main() {
     const stored = RenderSettings(
       border: BorderSize.large,
       colour: BorderColour.black,
-      size: SizePreset.square,
+      shape: Shape.square,
     );
     final controller = SessionController(
       FakeEngine(stored: stored),
@@ -80,7 +80,7 @@ void main() {
       controller.settings.copyWith(colour: BorderColour.black),
     );
     controller.updateSettings(
-      controller.settings.copyWith(size: SizePreset.instagramTall),
+      controller.settings.copyWith(shape: Shape.fourThree),
     );
     controller.updateSettings(
       controller.settings.copyWith(border: BorderSize.large),
@@ -94,7 +94,7 @@ void main() {
       const RenderSettings(
         border: BorderSize.large,
         colour: BorderColour.black,
-        size: SizePreset.instagramTall,
+        shape: Shape.fourThree,
       ),
     );
   });
@@ -226,7 +226,7 @@ void main() {
     const changed = RenderSettings(
       border: BorderSize.large,
       colour: BorderColour.black,
-      size: SizePreset.square,
+      shape: Shape.square,
     );
     engine.stored = changed;
     await controller.refreshSettings();

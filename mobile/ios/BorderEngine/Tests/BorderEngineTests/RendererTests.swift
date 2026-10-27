@@ -82,33 +82,37 @@ final class RendererTests: XCTestCase {
         bytes[offset] > 150 && bytes[offset + 1] < 110
     }
 
-    private func matches(_ bytes: [UInt8], _ offset: Int, _ colour: BorderColour) -> Bool {
-        let rgb = colour.rgb
+    private func matches(_ bytes: [UInt8], _ offset: Int, _ rgb: RGB) -> Bool {
         let expected = [rgb.red, rgb.green, rgb.blue].map { Int(($0 * 255).rounded()) }
         return (0..<3).allSatisfy { abs(Int(bytes[offset + $0]) - expected[$0]) <= 12 }
     }
 
     func testOutputDimensionsMatchThePlan() throws {
         let url = try makeFixture(width: 400, height: 600)
-        for size in SizePreset.allCases {
-            let settings = RenderSettings(border: .medium, colour: .white, size: size)
+        let customs = [RenderSettings(border: .medium, colour: .white, shape: .custom, customWidth: 2.35, customHeight: 1)]
+        let everyShape = Shape.allCases.flatMap { shape in
+            Orientation.allCases.map { RenderSettings(border: .medium, colour: .white, shape: shape, orientation: $0) }
+        }
+        for settings in everyShape + customs {
+            let size = (shape: settings.shape, orientation: settings.orientation)
             let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: EngineLimits.appMaximumEdge)
-            let plan = RenderPlanner.plan(sourceWidth: 400, sourceHeight: 600, border: .medium, preset: size, maximumEdge: EngineLimits.appMaximumEdge)
-            XCTAssertEqual(rendered.width, plan.canvasWidth, size.rawValue)
-            XCTAssertEqual(rendered.height, plan.canvasHeight, size.rawValue)
+            let plan = RenderPlanner.plan(sourceWidth: 400, sourceHeight: 600, border: .medium, ratio: settings.ratio, maximumEdge: EngineLimits.appMaximumEdge)
+            let label = "\(size.shape.rawValue) \(size.orientation.rawValue)"
+            XCTAssertEqual(rendered.width, plan.canvasWidth, label)
+            XCTAssertEqual(rendered.height, plan.canvasHeight, label)
             let decoded = try pixels(of: rendered.jpegData)
-            XCTAssertEqual(decoded.width, plan.canvasWidth, size.rawValue)
-            XCTAssertEqual(decoded.height, plan.canvasHeight, size.rawValue)
+            XCTAssertEqual(decoded.width, plan.canvasWidth, label)
+            XCTAssertEqual(decoded.height, plan.canvasHeight, label)
         }
     }
 
     func testBordersAreEvenAndUseTheChosenColour() throws {
         let url = try makeFixture(width: 400, height: 600)
-        for colour in [BorderColour.white, .black, .lightGrey] {
-            let settings = RenderSettings(border: .medium, colour: colour, size: .original)
+        for colour in [BorderColour.white, .black, .lightGrey, .custom] {
+            let settings = RenderSettings(border: .medium, colour: colour, shape: .original, customColour: "#336699")
             let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: EngineLimits.appMaximumEdge)
             let (bytes, width, height) = try pixels(of: rendered.jpegData)
-            XCTAssertTrue(matches(bytes, (2 * width + 2) * 4, colour), "corner \(colour.rawValue)")
+            XCTAssertTrue(matches(bytes, (2 * width + 2) * 4, settings.fillRGB), "corner \(colour.rawValue)")
 
             let middleRow = height / 2
             let left = (0..<width).first { isPhoto(bytes, (middleRow * width + $0) * 4) } ?? -1
@@ -152,7 +156,7 @@ final class RendererTests: XCTestCase {
 
         let original = try Renderer.render(
             sourceURL: url,
-            settings: RenderSettings(border: .medium, colour: .white, size: .original),
+            settings: RenderSettings(border: .medium, colour: .white, shape: .original),
             maximumEdge: EngineLimits.appMaximumEdge
         )
         let originalProfile = try properties(of: original.jpegData)[kCGImagePropertyProfileName] as? String
@@ -207,12 +211,12 @@ final class RendererTests: XCTestCase {
                 ] as CFDictionary))
                 let expected = try pixels(of: try jpegData(upright))
 
-                let settings = RenderSettings(border: .medium, colour: .white, size: .original)
+                let settings = RenderSettings(border: .medium, colour: .white, shape: .original)
                 let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: cap)
                 let actual = try pixels(of: rendered.jpegData)
                 let plan = RenderPlanner.plan(
                     sourceWidth: upright.width, sourceHeight: upright.height,
-                    border: .medium, preset: .original, maximumEdge: cap
+                    border: .medium, ratio: nil, maximumEdge: cap
                 )
                 XCTAssertEqual(actual.width, plan.canvasWidth, "\(type) \(orientation)")
                 XCTAssertEqual(actual.height, plan.canvasHeight, "\(type) \(orientation)")
@@ -270,10 +274,10 @@ final class RendererTests: XCTestCase {
             CGImageDestinationAddImage(destination, photo, [kCGImageDestinationLossyCompressionQuality: 0.95] as CFDictionary)
             XCTAssertTrue(CGImageDestinationFinalize(destination))
 
-            let settings = RenderSettings(border: .medium, colour: .white, size: .original)
+            let settings = RenderSettings(border: .medium, colour: .white, shape: .original)
             let rendered = try Renderer.render(sourceURL: url, settings: settings, maximumEdge: 1600)
             let actual = try pixels(of: rendered.jpegData)
-            let plan = RenderPlanner.plan(sourceWidth: width, sourceHeight: height, border: .medium, preset: .original, maximumEdge: 1600)
+            let plan = RenderPlanner.plan(sourceWidth: width, sourceHeight: height, border: .medium, ratio: nil, maximumEdge: 1600)
             XCTAssertEqual(actual.width, plan.canvasWidth)
 
             // The reference: the whole photo decoded and drawn in one pass.

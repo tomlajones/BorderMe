@@ -24,10 +24,10 @@ public enum RenderPlanner {
         sourceWidth: Int,
         sourceHeight: Int,
         border: BorderSize,
-        preset: SizePreset,
+        ratio: (width: Int, height: Int)?,
         maximumEdge: Int
     ) -> RenderPlan {
-        if let ratio = preset.ratio {
+        if let ratio {
             return ratioPlan(width: sourceWidth, height: sourceHeight, border: border, ratio: ratio, maximumEdge: maximumEdge)
         }
         return originalPlan(width: sourceWidth, height: sourceHeight, border: border, maximumEdge: maximumEdge)

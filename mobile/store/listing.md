@@ -20,16 +20,20 @@ You've got a photo you love and you want it sitting on clean white, ready to pos
 
 Your whole photo, never cropped. Instagram's feed shapes are fussy, and most tools chop the edges off to make a photo fit. Mat Board builds the canvas around your picture instead, so every pixel you shot is still there. The trade is a little more border on one pair of sides when your photo's shape doesn't match the canvas, and I think that's a fair price.
 
-Exact shapes:
-- Instagram Portrait, 4:5
-- Instagram Tall, 3:4
-- Instagram Landscape, 1.91:1
+Exact shapes, portrait or landscape:
+- 4:5 and 3:4 for Instagram's feed (or 5:4 and 4:3, turned on their side)
+- 3:2, the shape most cameras shoot
+- 16:9 for screens, or 9:16 for Stories
+- 1.91:1, Instagram's widest
 - Square, 1:1
+- Custom, for any ratio you type in, from 1:3 to 3:1
 - Original, which keeps your photo's own shape and simply adds the border
+
+If a shape is one Instagram's feed would crop, Mat Board tells you before you save.
 
 Full resolution. Mat Board never enlarges a photo, so a small image stays at its native size rather than going soft. Inside the app, big photos are kept sharp up to around 8192 pixels on the long edge, which is far more than Instagram shows. When you use Mat Board from the Share sheet in Photos, iOS gives extensions much less memory to work with, so those copies are capped at around 3072 pixels on the long edge. Open the app itself when you want the biggest files.
 
-Four border colours: white, off-white, light grey and black. Three thicknesses: Small is 2%, Medium 5% and Large 8% of your photo's shorter edge, so they look right on any shape.
+Border colours: white, off-white, light grey and black, or any colour you like (pick it by eye, or type in its hex code). Three thicknesses: Small is 2%, Medium 5% and Large 8% of your photo's shorter edge, so they look right on any shape.
 
 Batches of up to 50. Choose a whole afternoon's worth of photos, set the look once, and save them all in one go. You get a live preview as you change things, and you can flick through each photo before you save.
 
@@ -80,5 +84,5 @@ Free, all countries and regions.
 | Name | 9 | 30 |
 | Subtitle | 30 | 30 |
 | Promotional text | 136 | 170 |
-| Description | 2759 | 4000 |
+| Description | 3082 | 4000 |
 | Keywords | 97 | 100 |

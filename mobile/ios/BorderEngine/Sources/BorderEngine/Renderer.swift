@@ -40,7 +40,7 @@ public enum Renderer {
         let size = try orientedDimensions(of: source)
         let plan = RenderPlanner.plan(
             sourceWidth: size.width, sourceHeight: size.height,
-            border: settings.border, preset: settings.size, maximumEdge: maximumEdge
+            border: settings.border, ratio: settings.ratio, maximumEdge: maximumEdge
         )
         // Only the Share extension's cap needs the slower, leaner decode.
         let compact = maximumEdge <= EngineLimits.extensionMaximumEdge
@@ -56,7 +56,7 @@ public enum Renderer {
         let size = try orientedDimensions(of: source)
         let plan = RenderPlanner.plan(
             sourceWidth: size.width, sourceHeight: size.height,
-            border: settings.border, preset: settings.size, maximumEdge: EngineLimits.appMaximumEdge
+            border: settings.border, ratio: settings.ratio, maximumEdge: EngineLimits.appMaximumEdge
         )
         let scale = min(1.0, Double(maximumEdge) / Double(max(plan.canvasWidth, plan.canvasHeight)))
         let image = try draw(sourceURL: sourceURL, source: source, plan: plan, outputScale: scale, settings: settings, compact: false)
@@ -247,9 +247,9 @@ public enum Renderer {
         }
     }
 
-    private static func colorSpace(for photoSpace: CGColorSpace?, size: SizePreset) throws -> CGColorSpace {
+    private static func colorSpace(for photoSpace: CGColorSpace?, convertsToSRGB: Bool) throws -> CGColorSpace {
         guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB) else { throw BorderEngineError.cannotRender }
-        guard !size.convertsToSRGB else { return sRGB }
+        guard !convertsToSRGB else { return sRGB }
         guard
             let space = photoSpace,
             space.model == .rgb,
@@ -275,8 +275,8 @@ public enum Renderer {
 
         let decodeEdge = max(1, Int(max(imageRect.width, imageRect.height).rounded(.up)))
         let pixels = try blockSource(sourceURL: sourceURL, source: source, minimumLongEdge: decodeEdge, compact: compact)
-        let space = try colorSpace(for: pixels.colorSpace, size: settings.size)
-        let rgb = settings.colour.rgb
+        let space = try colorSpace(for: pixels.colorSpace, convertsToSRGB: settings.convertsToSRGB)
+        let rgb = settings.fillRGB
 
         guard
             let context = CGContext(

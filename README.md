@@ -41,7 +41,7 @@ New files are saved beside the originals, named after the source with the border
 
 ## iPhone
 
-There's an iPhone version too, called Mat Board, in `mobile/`. It's built with Flutter and has the same borders and sizes, a live preview, four border colours, and a Share-sheet action from the Photos app. It isn't on the App Store yet.
+There's an iPhone version too, called Mat Board, in `mobile/`. It's built with Flutter and has the same borders, more shapes (3:2, 16:9 and your own custom ratio among them, each portrait or landscape), a live preview, any border colour you like, and a Share-sheet action from the Photos app. It isn't on the App Store yet.
 
 ## Presets
 

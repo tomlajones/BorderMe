@@ -68,17 +68,22 @@ Photos cross the bridge as temporary file paths, never as library identifiers. R
 - Medium 5%
 - Large 8%
 
-**Border colour:** White (default), Off-white, Light grey, Black. A fixed list.
+**Border colour:** White (default), Off-white, Light grey, Black, or Custom. Custom is any "#RRGGBB" colour, chosen in the app with hue, saturation and brightness sliders or a hex box. The Share extension uses the last custom colour but doesn't edit it.
 
-**Size:**
+**Size:** a shape plus a Portrait/Landscape switch. Shapes are named long side first and turned for portrait.
 
-| Preset | Ratio | Notes |
-|---|---|---|
-| Instagram Portrait (default) | exactly 4:5 | Works everywhere |
-| Instagram Tall | exactly 3:4 | Native in the Instagram app |
-| Instagram Landscape | exactly 1.91:1 (191:100) | |
-| Square | exactly 1:1 | New on iPhone |
-| Original | photo + border | Full resolution, keeps colour profile |
+| Shape | Portrait | Landscape | Notes |
+|---|---|---|---|
+| 5:4 (default, portrait) | 4:5 Instagram | 5:4 Print | |
+| 4:3 | 3:4 Instagram tall | 4:3 iPhone | |
+| 3:2 | 2:3 Camera | 3:2 Camera | Most interchangeable-lens cameras |
+| 16:9 | 9:16 Stories | 16:9 Widescreen | |
+| 1:1 Square | | | No orientation |
+| 1.91:1 (191:100) | | | Landscape only, Instagram widest |
+| Custom | | | Typed width:height, up to two decimals, kept between 1:3 and 3:1. Reduced to whole numbers; terms over 100 are swapped for the nearest ratio with terms up to 100. |
+| Original | | | Photo + border, full resolution, keeps colour profile |
+
+Instagram's feed accepts 3:4 to 1.91:1; anything outside that shows a "will crop" note. Every shape except Original converts to sRGB.
 
 The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 
@@ -89,7 +94,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 - Photos are never cropped and never upscaled. A canvas is at least 1080 px wide.
 - The long-edge cap is about 8192 px in the app and about 3072 px in the Share extension, because of the extension's roughly 120 MB memory limit. Only photos over the cap are scaled, and only down. The cap is approximate: a ratio canvas is rounded up to a whole number of ratio units, so it can exceed the cap by up to one unit (about 190 px for 1.91:1).
 - Borders are split evenly: one canvas step up fixes parity, otherwise the image shrinks by one pixel.
-- Instagram presets and Square convert to sRGB. Original keeps the source's RGB profile.
+- Every shape except Original converts to sRGB. Original keeps the source's RGB profile.
 - JPEG quality is 0.92.
 
 **Reference results**, which must match the Mac engine at Medium border:
@@ -152,7 +157,7 @@ The Mac's Small (1200 px) and Medium (2400 px) output sizes are not included.
 
 - Android.
 - iPad-specific layout. The app runs on iPad as a scaled iPhone app.
-- Custom colour picker, text or watermark overlays, and cropping.
+- Text or watermark overlays, and cropping.
 - Posting directly to Instagram.
 
 ## Setup needed before building

@@ -28,9 +28,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(engine.previewRequests.last.$2.colour, BorderColour.black);
 
-    await tester.tap(find.text('3:4 Tall'));
+    await tester.ensureVisible(find.text('3:4 Instagram tall'));
+    await tester.tap(find.text('3:4 Instagram tall'));
     await tester.pumpAndSettle();
-    expect(engine.savedSettings.last.size, SizePreset.instagramTall);
+    expect(engine.savedSettings.last.shape, Shape.fourThree);
+    expect(engine.savedSettings.last.orientation, CanvasOrientation.portrait);
 
     await tester.tap(find.byKey(const Key('save')));
     await tester.pumpAndSettle();
@@ -218,7 +220,7 @@ void main() {
     engine.stored = const RenderSettings(
       border: BorderSize.large,
       colour: BorderColour.black,
-      size: SizePreset.square,
+      shape: Shape.square,
     );
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -227,5 +229,62 @@ void main() {
     await tester.tap(find.byKey(const Key('choose')));
     await tester.pumpAndSettle();
     expect(engine.previewRequests.last.$2, engine.stored);
+  });
+
+  testWidgets('landscape shapes, a custom ratio and a custom colour', (tester) async {
+    final engine = await pumpApp(tester);
+    await tester.tap(find.byKey(const Key('choose')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const Key('shape-3:2')));
+    await tester.tap(find.byKey(const Key('shape-3:2')));
+    await tester.pumpAndSettle();
+    expect(find.text('2:3 Camera'), findsOneWidget);
+    expect(find.textContaining("Instagram's feed will crop"), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('orientation-landscape')));
+    await tester.tap(find.byKey(const Key('orientation-landscape')));
+    await tester.pumpAndSettle();
+    expect(engine.savedSettings.last.orientation, CanvasOrientation.landscape);
+    expect(find.text('3:2 Camera'), findsOneWidget);
+    expect(find.textContaining("Instagram's feed will crop"), findsNothing);
+
+    await tester.ensureVisible(find.byKey(const Key('shape-custom')));
+    await tester.tap(find.byKey(const Key('shape-custom')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('orientation-landscape')), findsNothing);
+    await tester.ensureVisible(find.byKey(const Key('custom-width')));
+    await tester.enterText(find.byKey(const Key('custom-width')), '2.35');
+    await tester.enterText(find.byKey(const Key('custom-height')), '1');
+    await tester.pumpAndSettle();
+    expect(engine.savedSettings.last.shape, Shape.custom);
+    expect(engine.savedSettings.last.customWidth, 2.35);
+    expect(engine.savedSettings.last.customHeight, 1);
+    expect(find.text('Custom 2.35:1'), findsOneWidget);
+    expect(find.textContaining("Instagram's feed will crop"), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('custom-height')), '0');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('above 0'), findsOneWidget);
+    expect(engine.savedSettings.last.customHeight, 1);
+
+    await tester.ensureVisible(find.byKey(const Key('colour-custom')));
+    await tester.tap(find.byKey(const Key('colour-custom')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('picker-hex')), '#336699');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('picker-done')));
+    await tester.pumpAndSettle();
+    expect(engine.savedSettings.last.colour, BorderColour.custom);
+    expect(engine.savedSettings.last.customColour, '#336699');
+    expect(engine.previewRequests.last.$2.customColour, '#336699');
+
+    // A bad hex code can't be used.
+    await tester.tap(find.byKey(const Key('colour-custom')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('picker-hex')), '#33');
+    await tester.pumpAndSettle();
+    expect(find.text('Six digits, like #F4F1EA'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byKey(const Key('picker-done'))).onPressed, isNull);
   });
 }
