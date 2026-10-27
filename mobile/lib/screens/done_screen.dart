@@ -30,13 +30,13 @@ class DoneScreen extends StatelessWidget {
                       const Icon(Icons.lock_outline, size: 48),
                       const SizedBox(height: 16),
                       Text(
-                        'BorderMe needs permission to add photos',
+                        'Mat Board needs permission to add photos',
                         style: textTheme.titleLarge,
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 12),
                       const Text(
-                        "Your photos weren't saved. Allow BorderMe to add photos in Settings, then try again. "
+                        "Your photos weren't saved. Allow Mat Board to add photos in Settings, then try again. "
                         'It only ever adds new copies; it never reads or changes your library.',
                         textAlign: TextAlign.center,
                       ),
@@ -80,11 +80,11 @@ class DoneScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(switch (reason) {
                 StopReason.lowMemory =>
-                  'Your iPhone ran low on memory, so BorderMe stopped after ${c.saved} of ${c.total}. '
+                  'Your iPhone ran low on memory, so Mat Board stopped after ${c.saved} of ${c.total}. '
                       'Try the rest in a smaller batch.',
                 StopReason.outOfTime =>
-                  'BorderMe stopped after ${c.saved} of ${c.total} because it was in the background. '
-                      'Keep BorderMe open while it saves, then try the rest again.',
+                  'Mat Board stopped after ${c.saved} of ${c.total} because it was in the background. '
+                      'Keep Mat Board open while it saves, then try the rest again.',
               }),
             ],
             if (c.thumbnails.isNotEmpty) ...[

@@ -1,4 +1,4 @@
-// Draws BorderMe's 1024 px app icon: a sunset "photo" on a thick white
+// Draws Mat Board's 1024 px app icon: a sunset "photo" on a thick white
 // border, on a soft warm background. No transparency, as Apple requires.
 //
 //   swift mobile/tool/make_icon.swift mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png

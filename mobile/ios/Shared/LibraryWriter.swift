@@ -5,7 +5,7 @@ enum LibraryWriterError: Error {
 }
 
 /// Saves new photos with add-only access, the narrowest permission iOS has.
-/// BorderMe never reads the photo library.
+/// Mat Board never reads the photo library.
 enum LibraryWriter {
     static func requestAccess() async -> Bool {
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)

@@ -1,15 +1,15 @@
-# Submitting BorderMe to the App Store
+# Submitting Mat Board to the App Store
 
 Everything App Store Connect asks for is in this folder, apart from the Developer account. This is the walk from "I have the account" to "it's in review".
 
 1. **Enrol.** Sign up at developer.apple.com/programs ($99 a year) and wait for Apple to approve you. It can take a day or two.
 
-2. **Check signing in Xcode.** Open `mobile/ios/Runner.xcworkspace`. Select each target in turn (**Runner** and **ShareExtension**), go to **Signing & Capabilities**, and confirm your team is chosen, "Automatically manage signing" is on, and **App Groups** lists `group.com.tomlajones.borderme`. The team and the group are already set in the project, so there's probably nothing to tick.
-   - With automatic signing, Xcode registers the App IDs (`com.tomlajones.borderme` and `com.tomlajones.borderme.share`) and the group the first time it signs. If it complains, register them by hand at developer.apple.com under Certificates, Identifiers & Profiles, then Identifiers.
+2. **Check signing in Xcode.** Open `mobile/ios/Runner.xcworkspace`. Select each target in turn (**Runner** and **ShareExtension**), go to **Signing & Capabilities**, and confirm your team is chosen, "Automatically manage signing" is on, and **App Groups** lists `group.com.tomlajones.matboard`. The team and the group are already set in the project, so there's probably nothing to tick.
+   - With automatic signing, Xcode registers the App IDs (`com.tomlajones.matboard` and `com.tomlajones.matboard.share`) and the group the first time it signs. If it complains, register them by hand at developer.apple.com under Certificates, Identifiers & Profiles, then Identifiers.
 
-3. **Try it on your own iPhone.** Plug it in and run `flutter run --release` from `mobile`. Open Photos, share a picture to BorderMe, and check the Share sheet keeps your last settings. The Share-sheet copies top out at around 3072 px on the long edge; that's iOS limiting extension memory, so don't be surprised.
+3. **Try it on your own iPhone.** Plug it in and run `flutter run --release` from `mobile`. Open Photos, share a picture to Mat Board, and check the Share sheet keeps your last settings. The Share-sheet copies top out at around 3072 px on the long edge; that's iOS limiting extension memory, so don't be surprised.
 
-4. **Create the app in App Store Connect.** Bundle ID `com.tomlajones.borderme`, SKU `borderme-ios`, primary language English (UK).
+4. **Create the app in App Store Connect.** Bundle ID `com.tomlajones.matboard`, SKU `matboard-ios`, primary language English (UK).
 
 5. **Build and upload.** A distribution build needs the paid team from step 2, so don't try this before Apple has approved you.
    - Run `cd mobile && flutter build ipa --release`.

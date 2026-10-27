@@ -8,11 +8,11 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   final controller = SessionController(MethodChannelEngine());
   controller.init();
-  runApp(BorderMeApp(controller: controller));
+  runApp(MatBoardApp(controller: controller));
 }
 
-class BorderMeApp extends StatelessWidget {
-  const BorderMeApp({super.key, required this.controller});
+class MatBoardApp extends StatelessWidget {
+  const MatBoardApp({super.key, required this.controller});
 
   final SessionController controller;
 
@@ -21,7 +21,7 @@ class BorderMeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BorderMe',
+      title: 'Mat Board',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: _seed, useMaterial3: true),
       darkTheme: ThemeData(colorSchemeSeed: _seed, brightness: Brightness.dark, useMaterial3: true),

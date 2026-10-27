@@ -12,7 +12,7 @@ void main() {
   Future<FakeEngine> pumpApp(WidgetTester tester, {FakeEngine? engine}) async {
     final fake = engine ?? FakeEngine();
     final controller = SessionController(fake, debounce: Duration.zero);
-    await tester.pumpWidget(BorderMeApp(controller: controller));
+    await tester.pumpWidget(MatBoardApp(controller: controller));
     return fake;
   }
 
@@ -132,7 +132,7 @@ void main() {
             size: Size(320, 568),
             textScaler: TextScaler.linear(2.0),
           ),
-          child: BorderMeApp(controller: controller),
+          child: MatBoardApp(controller: controller),
         ),
       );
       // At this text size the Start screen scrolls, so bring the button into view.

@@ -23,7 +23,7 @@ class StartScreen extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('BorderMe', style: textTheme.displaySmall),
+                      Text('Mat Board', style: textTheme.displaySmall),
                       const SizedBox(height: 12),
                       Text(
                         'Clean borders for your photos, with nothing cropped.',

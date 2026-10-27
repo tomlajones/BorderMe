@@ -3,7 +3,7 @@ import Foundation
 /// The app and the Share extension read and write the same last-used
 /// settings through their shared App Group.
 enum SettingsStore {
-    static let appGroup = "group.com.tomlajones.borderme"
+    static let appGroup = "group.com.tomlajones.matboard"
     private static let key = "lastSettings"
 
     private static var defaults: UserDefaults {

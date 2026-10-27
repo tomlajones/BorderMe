@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Wires BorderMe's native code into the Flutter-generated Xcode project.
+# Wires Mat Board's native code into the Flutter-generated Xcode project.
 # Safe to run repeatedly: it only adds what is missing.
 #
 #   "$(brew --prefix ruby)/bin/ruby" mobile/tool/configure_xcode.rb
@@ -92,7 +92,7 @@ runner_team = runner.build_configurations.to_h { |c| [c.name, c.build_settings['
 extension.build_configurations.each do |config|
   config.base_configuration_reference = runner_bases[config.name] || runner_bases['Release']
   settings = config.build_settings
-  settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.tomlajones.borderme.share'
+  settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.tomlajones.matboard.share'
   settings['PRODUCT_NAME'] = '$(TARGET_NAME)'
   settings['INFOPLIST_FILE'] = 'ShareExtension/Info.plist'
   settings['GENERATE_INFOPLIST_FILE'] = 'NO'

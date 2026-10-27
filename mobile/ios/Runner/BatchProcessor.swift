@@ -51,7 +51,7 @@ final class BatchProcessor: NSObject, FlutterStreamHandler {
             UIApplication.shared.endBackgroundTask(background)
             background = .invalid
         }
-        background = UIApplication.shared.beginBackgroundTask(withName: "BorderMe batch") { [weak self] in
+        background = UIApplication.shared.beginBackgroundTask(withName: "Mat Board batch") { [weak self] in
             // iOS ends the app if this handler returns with the task still open.
             self?.setOutOfTime(true)
             endBackground()

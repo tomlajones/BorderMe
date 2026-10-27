@@ -40,7 +40,7 @@ enum StopReason {
   /// iOS warned that memory was running low.
   lowMemory,
 
-  /// BorderMe was in the background and iOS ran out of time to give it.
+  /// Mat Board was in the background and iOS ran out of time to give it.
   outOfTime,
 }
 

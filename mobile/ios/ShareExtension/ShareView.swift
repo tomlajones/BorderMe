@@ -8,7 +8,7 @@ struct ShareView: View {
     var body: some View {
         NavigationView {
             content
-                .navigationTitle("BorderMe")
+                .navigationTitle("Mat Board")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {

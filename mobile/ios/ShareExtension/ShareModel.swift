@@ -35,7 +35,7 @@ final class ShareModel: ObservableObject {
             self.paths = picked.paths
             self.unopened = picked.failed
             if picked.paths.isEmpty {
-                self.stage = .failed("BorderMe couldn't open these photos.")
+                self.stage = .failed("Mat Board couldn't open these photos.")
             } else {
                 self.stage = .ready
                 self.refreshPreview()
@@ -63,7 +63,7 @@ final class ShareModel: ObservableObject {
         stage = .saving(done: 0, total: paths.count)
         Task.detached(priority: .userInitiated) { [weak self] in
             guard await LibraryWriter.requestAccess() else {
-                self?.setStage(.failed("BorderMe needs permission to add photos. You can allow it in Settings > Privacy & Security > Photos."))
+                self?.setStage(.failed("Mat Board needs permission to add photos. You can allow it in Settings > Privacy & Security > Photos."))
                 return
             }
             var saved = 0
