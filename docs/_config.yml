@@ -1,0 +1,4 @@
+# GitHub Pages serves this folder for the Mat Board privacy policy. The
+# design notes are for the repo, not the website.
+exclude:
+  - superpowers
